@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package arena;
+
+service FrontendService {
+  rpc AllocateRoom(AllocateRoomRequest) returns (AllocateRoomResponse);
+}
+
+message AllocateRoomRequest {
+  string room_id = 1;
+  string fleet_name = 2;
+}
+
+message AllocateRoomResponse {
+  string address = 1;
+}
