@@ -9,6 +9,7 @@ service FrontendService {
 message AllocateRoomRequest {
   string room_id = 1;
   string fleet_name = 2;
+  bytes room_initial_data = 3;
 }
 
 message AllocateRoomResponse {
