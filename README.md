@@ -13,6 +13,8 @@ Each time a room is allocated, the capacity of the RoomGroup is decremented by 1
 When it reaches 0, the RoomGroup is full and cannot be allocated there.
 However, when a room is freed by `ArenaSDK.FreeRoom`, the capacity is increased and the room can be allocated again.
 
+Note that capacity here is the number of rooms, not the number of players.
+
 ```mermaid
 sequenceDiagram
     participant Player
