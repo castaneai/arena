@@ -1,0 +1,10 @@
+services:
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+  aspire:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
+    ports:
+      - "18888:18888"  # dashboard UI
+      - "4317:18889"  # OTLP
