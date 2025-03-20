@@ -20,7 +20,7 @@ func TestAllocator(t *testing.T) {
 	fleet1Name := "fleet1"
 	ctx := t.Context()
 	client, _ := newRedisClientWithMiniRedis(t)
-	sdk := NewRedisArenaSDK(testingKeyPrefix, client)
+	sdk := NewArenaSDK(testingKeyPrefix, client)
 	allocator := NewRoomAllocator(testingKeyPrefix, client)
 
 	// group1: (0/2)

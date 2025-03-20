@@ -26,10 +26,9 @@ sequenceDiagram
         Matchmaker ->> Arena: RoomAllocator.AllocateRoom()
         activate Arena
         Arena ->> GameServer: Notify Allocation
-        GameServer ->> Arena: Room Address
-        Arena ->> Matchmaker: Room Address
+        Arena ->> Matchmaker: RoomGroup Address
         deactivate Arena
-        Matchmaker ->> Player: Room Address
+        Matchmaker ->> Player: RoomGroup Address
         Note over GameServer: RoomGroup capacity -1
 
         Player ->> GameServer: Join Room
@@ -41,6 +40,11 @@ sequenceDiagram
     Note over GameServer: Shutdown GameServer
     GameServer ->> Arena: ArenaSDK.DeleteRoomGroup
 ```
+
+## Usage
+
+Arena uses Redis as its backend, with [rueidis](https://github.com/redis/rueidis).
+You can create the respective interfaces with `arenaredis.NewRoomAllocator` and `arenaredis.NewArenaSDK`.
 
 ## License
 

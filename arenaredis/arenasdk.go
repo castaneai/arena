@@ -19,12 +19,22 @@ type redisArenaSDK struct {
 	deleteFunc context.CancelFunc
 }
 
-func NewRedisArenaSDK(keyPrefix string, client rueidis.Client) arena.ArenaSDK {
+func NewArenaSDK(keyPrefix string, client rueidis.Client) arena.ArenaSDK {
 	deleteCtx, deleteFunc := context.WithCancel(context.Background())
 	return &redisArenaSDK{keyPrefix: keyPrefix, client: client, deleteFunc: deleteFunc, deleteCtx: deleteCtx}
 }
 
 func (sdk *redisArenaSDK) AddRoomGroup(ctx context.Context, req arena.AddRoomGroupRequest) (*arena.AddRoomGroupResponse, error) {
+	if req.Address == "" {
+		return nil, errors.New("missing address")
+	}
+	if req.FleetName == "" {
+		return nil, errors.New("missing fleet name")
+	}
+	if req.Capacity <= 0 {
+		return nil, errors.New("invalid capacity")
+	}
+
 	eventCh := sdk.listenEvents(req)
 	key := redisKeyAvailableRoomGroups(sdk.keyPrefix, req.FleetName)
 	cmd := sdk.client.B().Zadd().Key(key).ScoreMember().ScoreMember(float64(req.Capacity), req.Address).Build()
@@ -101,6 +111,13 @@ func decodeRoomAllocatedEvent(entry rueidis.XRangeEntry) (*arena.RoomGroupEventR
 }
 
 func (sdk *redisArenaSDK) DeleteRoomGroup(ctx context.Context, req arena.DeleteRoomGroupRequest) error {
+	if req.Address == "" {
+		return errors.New("missing address")
+	}
+	if req.FleetName == "" {
+		return errors.New("missing fleet name")
+	}
+
 	sdk.deleteFunc()
 	key := redisKeyAvailableRoomGroups(sdk.keyPrefix, req.FleetName)
 	cmd := sdk.client.B().Zrem().Key(key).Member(req.Address).Build()
@@ -123,6 +140,13 @@ func (sdk *redisArenaSDK) deleteRoomGroupEventStream(ctx context.Context, req ar
 }
 
 func (sdk *redisArenaSDK) FreeRoom(ctx context.Context, req arena.FreeRoomRequest) error {
+	if req.Address == "" {
+		return errors.New("missing address")
+	}
+	if req.FleetName == "" {
+		return errors.New("missing fleet name")
+	}
+
 	key := redisKeyAvailableRoomGroups(sdk.keyPrefix, req.FleetName)
 	cmd := sdk.client.B().Zadd().Key(key).Xx().Incr().ScoreMember().ScoreMember(1, req.Address).Build()
 	if err := sdk.client.Do(ctx, cmd).Error(); err != nil {

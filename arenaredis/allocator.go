@@ -3,6 +3,7 @@ package arenaredis
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 
 	"github.com/redis/rueidis"
@@ -20,6 +21,13 @@ func NewRoomAllocator(keyPrefix string, client rueidis.Client) arena.RoomAllocat
 }
 
 func (a *redisRoomAllocator) AllocateRoom(ctx context.Context, req arena.AllocateRoomRequest) (*arena.AllocateRoomResponse, error) {
+	if req.RoomID == "" {
+		return nil, errors.New("missing room id")
+	}
+	if req.FleetName == "" {
+		return nil, errors.New("missing fleet name")
+	}
+
 	key := redisKeyAvailableRoomGroups(a.keyPrefix, req.FleetName)
 	script := rueidis.NewLuaScript(`
 local key = KEYS[1]

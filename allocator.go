@@ -10,6 +10,8 @@ var (
 )
 
 type RoomAllocator interface {
+	// AllocateRoom searches for an available RoomGroup and allocates a Room.
+	// If there is no vacancy, it returns ErrRoomExhausted.
 	AllocateRoom(ctx context.Context, req AllocateRoomRequest) (*AllocateRoomResponse, error)
 }
 
