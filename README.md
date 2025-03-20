@@ -48,6 +48,11 @@ sequenceDiagram
 Arena uses Redis as its backend, with [rueidis](https://github.com/redis/rueidis).
 You can create the respective interfaces with `arenaredis.NewRoomAllocator` and `arenaredis.NewArenaSDK`.
 
+## Extensibility
+
+Arena is currently built on top of Go and Redis,
+but could be implemented in other languages or other pub/sub solutions, as Arena is essentially a room management interface.
+
 ## License
 
 MIT
