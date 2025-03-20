@@ -6,14 +6,20 @@ import (
 )
 
 var (
-	ErrorRoomExhausted = errors.New("room exhausted")
+	ErrRoomExhausted = errors.New("room exhausted")
 )
 
 type RoomAllocator interface {
-	AllocateRoom(ctx context.Context, roomID, fleetName string) (*AllocatedRoom, error)
+	AllocateRoom(ctx context.Context, req AllocateRoomRequest) (*AllocateRoomResponse, error)
 }
 
-type AllocatedRoom struct {
+type AllocateRoomRequest struct {
+	RoomID          string
+	FleetName       string
+	RoomInitialData []byte
+}
+
+type AllocateRoomResponse struct {
 	RoomID  string
 	Address string
 }

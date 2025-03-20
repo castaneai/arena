@@ -2,6 +2,7 @@ package arenaredis
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/redis/rueidis"
@@ -18,31 +19,43 @@ func NewRoomAllocator(keyPrefix string, client rueidis.Client) arena.RoomAllocat
 	return &redisRoomAllocator{keyPrefix: keyPrefix, client: client}
 }
 
-func (a *redisRoomAllocator) AllocateRoom(ctx context.Context, roomID, fleetName string) (*arena.AllocatedRoom, error) {
-	key := redisKeyAvailableRoomGroups(a.keyPrefix, fleetName)
-	cmd := a.client.B().Zpopmin().Key(key).Build()
-	reply, err := a.client.Do(ctx, cmd).ToArray()
+func (a *redisRoomAllocator) AllocateRoom(ctx context.Context, req arena.AllocateRoomRequest) (*arena.AllocateRoomResponse, error) {
+	key := redisKeyAvailableRoomGroups(a.keyPrefix, req.FleetName)
+	script := rueidis.NewLuaScript(`
+local key = KEYS[1]
+local items = redis.call('ZRANGE', key, '(0', '+inf', 'BYSCORE', 'LIMIT', 0, 1)
+
+if #items == 0 then
+    return nil
+end
+
+local address = items[1]
+redis.call('ZINCRBY', key, -1, address)
+return address
+`)
+	reply := script.Exec(ctx, a.client, []string{key}, nil)
+	roomGroupAddress, err := reply.ToString()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse ZPOPMIN reply (key: '%s'): %w", key, err)
+		if rueidis.IsRedisNil(err) {
+			return nil, arena.ErrRoomExhausted
+		}
+		return nil, fmt.Errorf("failed to exec lua script: %w", err)
 	}
-	if len(reply) == 0 {
-		return nil, arena.ErrorRoomExhausted
+	if err := a.notifyRoomCreation(ctx, req, roomGroupAddress); err != nil {
+		return nil, fmt.Errorf("failed to notify room creation: %w", err)
 	}
-	if len(reply) != 2 {
-		return nil, fmt.Errorf("ZPOPMIN reply expected 2 elements, got %d", len(reply))
+	return &arena.AllocateRoomResponse{RoomID: req.RoomID, Address: roomGroupAddress}, nil
+}
+
+func (a *redisRoomAllocator) notifyRoomCreation(ctx context.Context, req arena.AllocateRoomRequest, address string) error {
+	stream := redisKeyRoomGroupEventStream(a.keyPrefix, req.FleetName, address)
+	roomInitialDataStr := base64.StdEncoding.EncodeToString(req.RoomInitialData)
+	cmd := a.client.B().Xadd().Key(stream).Id("*").FieldValue().
+		FieldValue(redisStreamFieldNameEventName, arena.EventNameRoomAllocated).
+		FieldValue(redisStreamFieldNameRoomID, req.RoomID).
+		FieldValue(redisStreamFieldNameRoomInitialData, roomInitialDataStr).Build()
+	if err := a.client.Do(ctx, cmd).Error(); err != nil {
+		return fmt.Errorf("failed to XADD room event to stream '%s': %w", stream, err)
 	}
-	roomGroupAddress, err := reply[0].ToString()
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse ZPOPMIN reply[0] as string (key: '%s'): %w", key, err)
-	}
-	availableCount, err := reply[1].AsInt64()
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse ZPOPMIN reply[1] as int64 (key: '%s'): %w", key, err)
-	}
-	// TODO: send allocate event to the room journal
-	if availableCount-1 > 0 {
-		cmd = a.client.B().Zadd().Key(key).ScoreMember().ScoreMember(float64(availableCount-1), roomGroupAddress).Build()
-		_ = a.client.Do(ctx, cmd)
-	}
-	return &arena.AllocatedRoom{RoomID: roomID, Address: roomGroupAddress}, nil
+	return nil
 }
