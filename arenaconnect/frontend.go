@@ -6,17 +6,19 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/castaneai/arena"
+	arenav1 "github.com/castaneai/arena/arenaconnect/castaneai/arena/v1"
+	"github.com/castaneai/arena/arenaconnect/castaneai/arena/v1/arenav1connect"
 )
 
 type frontendService struct {
 	frontend arena.Frontend
 }
 
-func NewFrontendService(frontend arena.Frontend) FrontendServiceHandler {
+func NewFrontendService(frontend arena.Frontend) arenav1connect.FrontendServiceHandler {
 	return &frontendService{frontend: frontend}
 }
 
-func (s *frontendService) AllocateRoom(ctx context.Context, req *connect.Request[AllocateRoomRequest]) (*connect.Response[AllocateRoomResponse], error) {
+func (s *frontendService) AllocateRoom(ctx context.Context, req *connect.Request[arenav1.AllocateRoomRequest]) (*connect.Response[arenav1.AllocateRoomResponse], error) {
 	resp, err := s.frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{
 		RoomID:          req.Msg.RoomId,
 		FleetName:       req.Msg.FleetName,
@@ -31,13 +33,13 @@ func (s *frontendService) AllocateRoom(ctx context.Context, req *connect.Request
 		}
 		return nil, err
 	}
-	return connect.NewResponse(&AllocateRoomResponse{
+	return connect.NewResponse(&arenav1.AllocateRoomResponse{
 		RoomId:  resp.RoomID,
 		Address: resp.Address,
 	}), nil
 }
 
-func (s *frontendService) GetRoomResult(ctx context.Context, req *connect.Request[GetRoomResultRequest]) (*connect.Response[GetRoomResultResponse], error) {
+func (s *frontendService) GetRoomResult(ctx context.Context, req *connect.Request[arenav1.GetRoomResultRequest]) (*connect.Response[arenav1.GetRoomResultResponse], error) {
 	resp, err := s.frontend.GetRoomResult(ctx, arena.GetRoomResultRequest{RoomID: req.Msg.RoomId})
 	if err != nil {
 		if arena.ErrorHasStatus(err, arena.ErrorStatusInvalidRequest) {
@@ -48,7 +50,7 @@ func (s *frontendService) GetRoomResult(ctx context.Context, req *connect.Reques
 		}
 		return nil, err
 	}
-	return connect.NewResponse(&GetRoomResultResponse{
+	return connect.NewResponse(&arenav1.GetRoomResultResponse{
 		RoomId:         resp.RoomID,
 		RoomResultData: resp.RoomResultData,
 	}), nil

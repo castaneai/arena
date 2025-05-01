@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: frontend.proto
+// source: castaneai/arena/v1/frontend.proto
 
-package arenaconnect
+package arenav1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
@@ -33,7 +33,7 @@ type AllocateRoomRequest struct {
 
 func (x *AllocateRoomRequest) Reset() {
 	*x = AllocateRoomRequest{}
-	mi := &file_frontend_proto_msgTypes[0]
+	mi := &file_castaneai_arena_v1_frontend_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +45,7 @@ func (x *AllocateRoomRequest) String() string {
 func (*AllocateRoomRequest) ProtoMessage() {}
 
 func (x *AllocateRoomRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_frontend_proto_msgTypes[0]
+	mi := &file_castaneai_arena_v1_frontend_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +58,7 @@ func (x *AllocateRoomRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AllocateRoomRequest.ProtoReflect.Descriptor instead.
 func (*AllocateRoomRequest) Descriptor() ([]byte, []int) {
-	return file_frontend_proto_rawDescGZIP(), []int{0}
+	return file_castaneai_arena_v1_frontend_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AllocateRoomRequest) GetRoomId() string {
@@ -92,7 +92,7 @@ type AllocateRoomResponse struct {
 
 func (x *AllocateRoomResponse) Reset() {
 	*x = AllocateRoomResponse{}
-	mi := &file_frontend_proto_msgTypes[1]
+	mi := &file_castaneai_arena_v1_frontend_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -104,7 +104,7 @@ func (x *AllocateRoomResponse) String() string {
 func (*AllocateRoomResponse) ProtoMessage() {}
 
 func (x *AllocateRoomResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_frontend_proto_msgTypes[1]
+	mi := &file_castaneai_arena_v1_frontend_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -117,7 +117,7 @@ func (x *AllocateRoomResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AllocateRoomResponse.ProtoReflect.Descriptor instead.
 func (*AllocateRoomResponse) Descriptor() ([]byte, []int) {
-	return file_frontend_proto_rawDescGZIP(), []int{1}
+	return file_castaneai_arena_v1_frontend_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *AllocateRoomResponse) GetRoomId() string {
@@ -143,7 +143,7 @@ type GetRoomResultRequest struct {
 
 func (x *GetRoomResultRequest) Reset() {
 	*x = GetRoomResultRequest{}
-	mi := &file_frontend_proto_msgTypes[2]
+	mi := &file_castaneai_arena_v1_frontend_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -155,7 +155,7 @@ func (x *GetRoomResultRequest) String() string {
 func (*GetRoomResultRequest) ProtoMessage() {}
 
 func (x *GetRoomResultRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_frontend_proto_msgTypes[2]
+	mi := &file_castaneai_arena_v1_frontend_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -168,7 +168,7 @@ func (x *GetRoomResultRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomResultRequest.ProtoReflect.Descriptor instead.
 func (*GetRoomResultRequest) Descriptor() ([]byte, []int) {
-	return file_frontend_proto_rawDescGZIP(), []int{2}
+	return file_castaneai_arena_v1_frontend_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetRoomResultRequest) GetRoomId() string {
@@ -188,7 +188,7 @@ type GetRoomResultResponse struct {
 
 func (x *GetRoomResultResponse) Reset() {
 	*x = GetRoomResultResponse{}
-	mi := &file_frontend_proto_msgTypes[3]
+	mi := &file_castaneai_arena_v1_frontend_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -200,7 +200,7 @@ func (x *GetRoomResultResponse) String() string {
 func (*GetRoomResultResponse) ProtoMessage() {}
 
 func (x *GetRoomResultResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_frontend_proto_msgTypes[3]
+	mi := &file_castaneai_arena_v1_frontend_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -213,7 +213,7 @@ func (x *GetRoomResultResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomResultResponse.ProtoReflect.Descriptor instead.
 func (*GetRoomResultResponse) Descriptor() ([]byte, []int) {
-	return file_frontend_proto_rawDescGZIP(), []int{3}
+	return file_castaneai_arena_v1_frontend_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetRoomResultResponse) GetRoomId() string {
@@ -230,11 +230,11 @@ func (x *GetRoomResultResponse) GetRoomResultData() []byte {
 	return nil
 }
 
-var File_frontend_proto protoreflect.FileDescriptor
+var File_castaneai_arena_v1_frontend_proto protoreflect.FileDescriptor
 
-const file_frontend_proto_rawDesc = "" +
+const file_castaneai_arena_v1_frontend_proto_rawDesc = "" +
 	"\n" +
-	"\x0efrontend.proto\x12\x05arena\x1a\x1bbuf/validate/validate.proto\"\x89\x01\n" +
+	"!castaneai/arena/v1/frontend.proto\x12\x12castaneai.arena.v1\x1a\x1bbuf/validate/validate.proto\"\x89\x01\n" +
 	"\x13AllocateRoomRequest\x12\x1f\n" +
 	"\aroom_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x06roomId\x12%\n" +
 	"\n" +
@@ -247,36 +247,36 @@ const file_frontend_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x06roomId\"b\n" +
 	"\x15GetRoomResultResponse\x12\x1f\n" +
 	"\aroom_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x06roomId\x12(\n" +
-	"\x10room_result_data\x18\x02 \x01(\fR\x0eroomResultData2\xa6\x01\n" +
-	"\x0fFrontendService\x12G\n" +
-	"\fAllocateRoom\x12\x1a.arena.AllocateRoomRequest\x1a\x1b.arena.AllocateRoomResponse\x12J\n" +
-	"\rGetRoomResult\x12\x1b.arena.GetRoomResultRequest\x1a\x1c.arena.GetRoomResultResponseBw\n" +
-	"\tcom.arenaB\rFrontendProtoP\x01Z'github.com/castaneai/arena/arenaconnect\xa2\x02\x03AXX\xaa\x02\x05Arena\xca\x02\x05Arena\xe2\x02\x11Arena\\GPBMetadata\xea\x02\x05Arenab\x06proto3"
+	"\x10room_result_data\x18\x02 \x01(\fR\x0eroomResultData2\xda\x01\n" +
+	"\x0fFrontendService\x12a\n" +
+	"\fAllocateRoom\x12'.castaneai.arena.v1.AllocateRoomRequest\x1a(.castaneai.arena.v1.AllocateRoomResponse\x12d\n" +
+	"\rGetRoomResult\x12(.castaneai.arena.v1.GetRoomResultRequest\x1a).castaneai.arena.v1.GetRoomResultResponseB\xd5\x01\n" +
+	"\x16com.castaneai.arena.v1B\rFrontendProtoP\x01ZBgithub.com/castaneai/arena/arenaconnect/castaneai/arena/v1;arenav1\xa2\x02\x03CAX\xaa\x02\x12Castaneai.Arena.V1\xca\x02\x12Castaneai\\Arena\\V1\xe2\x02\x1eCastaneai\\Arena\\V1\\GPBMetadata\xea\x02\x14Castaneai::Arena::V1b\x06proto3"
 
 var (
-	file_frontend_proto_rawDescOnce sync.Once
-	file_frontend_proto_rawDescData []byte
+	file_castaneai_arena_v1_frontend_proto_rawDescOnce sync.Once
+	file_castaneai_arena_v1_frontend_proto_rawDescData []byte
 )
 
-func file_frontend_proto_rawDescGZIP() []byte {
-	file_frontend_proto_rawDescOnce.Do(func() {
-		file_frontend_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_frontend_proto_rawDesc), len(file_frontend_proto_rawDesc)))
+func file_castaneai_arena_v1_frontend_proto_rawDescGZIP() []byte {
+	file_castaneai_arena_v1_frontend_proto_rawDescOnce.Do(func() {
+		file_castaneai_arena_v1_frontend_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_castaneai_arena_v1_frontend_proto_rawDesc), len(file_castaneai_arena_v1_frontend_proto_rawDesc)))
 	})
-	return file_frontend_proto_rawDescData
+	return file_castaneai_arena_v1_frontend_proto_rawDescData
 }
 
-var file_frontend_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_frontend_proto_goTypes = []any{
-	(*AllocateRoomRequest)(nil),   // 0: arena.AllocateRoomRequest
-	(*AllocateRoomResponse)(nil),  // 1: arena.AllocateRoomResponse
-	(*GetRoomResultRequest)(nil),  // 2: arena.GetRoomResultRequest
-	(*GetRoomResultResponse)(nil), // 3: arena.GetRoomResultResponse
+var file_castaneai_arena_v1_frontend_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_castaneai_arena_v1_frontend_proto_goTypes = []any{
+	(*AllocateRoomRequest)(nil),   // 0: castaneai.arena.v1.AllocateRoomRequest
+	(*AllocateRoomResponse)(nil),  // 1: castaneai.arena.v1.AllocateRoomResponse
+	(*GetRoomResultRequest)(nil),  // 2: castaneai.arena.v1.GetRoomResultRequest
+	(*GetRoomResultResponse)(nil), // 3: castaneai.arena.v1.GetRoomResultResponse
 }
-var file_frontend_proto_depIdxs = []int32{
-	0, // 0: arena.FrontendService.AllocateRoom:input_type -> arena.AllocateRoomRequest
-	2, // 1: arena.FrontendService.GetRoomResult:input_type -> arena.GetRoomResultRequest
-	1, // 2: arena.FrontendService.AllocateRoom:output_type -> arena.AllocateRoomResponse
-	3, // 3: arena.FrontendService.GetRoomResult:output_type -> arena.GetRoomResultResponse
+var file_castaneai_arena_v1_frontend_proto_depIdxs = []int32{
+	0, // 0: castaneai.arena.v1.FrontendService.AllocateRoom:input_type -> castaneai.arena.v1.AllocateRoomRequest
+	2, // 1: castaneai.arena.v1.FrontendService.GetRoomResult:input_type -> castaneai.arena.v1.GetRoomResultRequest
+	1, // 2: castaneai.arena.v1.FrontendService.AllocateRoom:output_type -> castaneai.arena.v1.AllocateRoomResponse
+	3, // 3: castaneai.arena.v1.FrontendService.GetRoomResult:output_type -> castaneai.arena.v1.GetRoomResultResponse
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -284,26 +284,26 @@ var file_frontend_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_frontend_proto_init() }
-func file_frontend_proto_init() {
-	if File_frontend_proto != nil {
+func init() { file_castaneai_arena_v1_frontend_proto_init() }
+func file_castaneai_arena_v1_frontend_proto_init() {
+	if File_castaneai_arena_v1_frontend_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_frontend_proto_rawDesc), len(file_frontend_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_castaneai_arena_v1_frontend_proto_rawDesc), len(file_castaneai_arena_v1_frontend_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_frontend_proto_goTypes,
-		DependencyIndexes: file_frontend_proto_depIdxs,
-		MessageInfos:      file_frontend_proto_msgTypes,
+		GoTypes:           file_castaneai_arena_v1_frontend_proto_goTypes,
+		DependencyIndexes: file_castaneai_arena_v1_frontend_proto_depIdxs,
+		MessageInfos:      file_castaneai_arena_v1_frontend_proto_msgTypes,
 	}.Build()
-	File_frontend_proto = out.File
-	file_frontend_proto_goTypes = nil
-	file_frontend_proto_depIdxs = nil
+	File_castaneai_arena_v1_frontend_proto = out.File
+	file_castaneai_arena_v1_frontend_proto_goTypes = nil
+	file_castaneai_arena_v1_frontend_proto_depIdxs = nil
 }

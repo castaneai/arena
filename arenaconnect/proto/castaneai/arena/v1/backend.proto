@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package arena;
+package castaneai.arena.v1;
 
 import "buf/validate/validate.proto";
 
