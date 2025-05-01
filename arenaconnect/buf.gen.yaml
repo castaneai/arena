@@ -1,0 +1,23 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/castaneai/arena/arenaconnect
+  # https://buf.build/docs/protovalidate/quickstart/#depending-on-protovalidate
+  disable:
+    - file_option: go_package
+      module: buf.build/bufbuild/protovalidate
+plugins:
+  - remote: buf.build/connectrpc/go:v1.18.1
+    out: .
+    opt:
+      - paths=source_relative
+      # to generate into the same package as the base .pb.go files
+      # https://github.com/connectrpc/connect-go/blob/46c8b00cab4b55c06a7c8f76fdcd6ca8d20e8629/cmd/protoc-gen-connect-go/main.go#L43-L45
+      - package_suffix=
+  # dependencies
+  - remote: buf.build/protocolbuffers/go:v1.36.6
+    out: .
+    opt:
+      - paths=source_relative

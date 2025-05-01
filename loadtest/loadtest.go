@@ -54,14 +54,14 @@ func main() {
 		slog.Error(err.Error(), "error", err)
 		os.Exit(1)
 	}
-	allocator, err := arenaotel.NewRoomAllocator(arenaredis.NewRoomAllocator("arenaloadtest:", redisClient))
+	allocator, err := arenaotel.NewFrontend(arenaredis.NewFrontend("arenaloadtest:", redisClient))
 	if err != nil {
-		err := fmt.Errorf("failed to create Arena RoomAllocator: %w", err)
+		err := fmt.Errorf("failed to create Arena Frontend: %w", err)
 		slog.Error(err.Error(), "error", err)
 		os.Exit(1)
 	}
-	sdk := arenaredis.NewArenaSDK("arenaloadtest:", redisClient)
-	_, err = sdk.AddRoomGroup(ctx, arena.AddRoomGroupRequest{FleetName: fleetName, Address: "dummy", Capacity: 2000})
+	backend := arenaredis.NewBackend(ctx, "arenaloadtest:", redisClient)
+	_, err = backend.AddRoomGroup(ctx, arena.AddRoomGroupRequest{FleetName: fleetName, Address: "dummy", Capacity: 2000})
 	if err != nil {
 		err := fmt.Errorf("failed to add room group: %w", err)
 		slog.Error(err.Error(), "error", err)

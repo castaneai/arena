@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package arena;
+
+import "buf/validate/validate.proto";
+
+service BackendService {
+  rpc AddRoomGroup(AddRoomGroupRequest) returns (stream AddRoomGroupResponse);
+  rpc DeleteRoomGroup(DeleteRoomGroupRequest) returns (DeleteRoomGroupResponse);
+  rpc SetRoomResult(SetRoomResultRequest) returns (SetRoomResultResponse);
+  rpc FreeRoom(FreeRoomRequest) returns (FreeRoomResponse);
+}
+
+message AddRoomGroupRequest {
+  string address = 1 [(buf.validate.field).required = true];
+  string fleet_name = 2 [(buf.validate.field).required = true];
+  uint32 capacity = 3 [(buf.validate.field).required = true];
+}
+
+message AddRoomGroupResponse {
+  oneof room_group_event {
+    RoomGroupEventRoomAllocated room_allocated = 1;
+  }
+}
+
+message RoomGroupEventRoomAllocated {
+  string room_id = 1 [(buf.validate.field).required = true];
+  bytes room_initial_data = 2;
+}
+
+message DeleteRoomGroupRequest {
+  string address = 1 [(buf.validate.field).required = true];
+  string fleet_name = 2 [(buf.validate.field).required = true];
+}
+
+message DeleteRoomGroupResponse {}
+
+message SetRoomResultRequest {
+  string room_id = 1 [(buf.validate.field).required = true];
+  bytes room_result_data = 2 [(buf.validate.field).required = true];
+  uint32 result_data_ttl_seconds = 3 [(buf.validate.field).uint32.gt = 0];
+}
+
+message SetRoomResultResponse {}
+
+message FreeRoomRequest {
+  string address = 1 [(buf.validate.field).required = true];
+  string fleet_name = 2 [(buf.validate.field).required = true];
+}
+
+message FreeRoomResponse {}
+
