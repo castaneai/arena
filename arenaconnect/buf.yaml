@@ -10,3 +10,4 @@ breaking:
     - FILE
 modules:
   - path: proto
+    name: buf.build/castaneai/arena

@@ -7,17 +7,19 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/castaneai/arena"
+	arenav1 "github.com/castaneai/arena/arenaconnect/castaneai/arena/v1"
+	"github.com/castaneai/arena/arenaconnect/castaneai/arena/v1/arenav1connect"
 )
 
 type backendService struct {
 	backend arena.Backend
 }
 
-func NewBackendService(backend arena.Backend) BackendServiceHandler {
+func NewBackendService(backend arena.Backend) arenav1connect.BackendServiceHandler {
 	return &backendService{backend: backend}
 }
 
-func (s *backendService) AddRoomGroup(ctx context.Context, req *connect.Request[AddRoomGroupRequest], stream *connect.ServerStream[AddRoomGroupResponse]) error {
+func (s *backendService) AddRoomGroup(ctx context.Context, req *connect.Request[arenav1.AddRoomGroupRequest], stream *connect.ServerStream[arenav1.AddRoomGroupResponse]) error {
 	resp, err := s.backend.AddRoomGroup(ctx, arena.AddRoomGroupRequest{
 		Address:   req.Msg.Address,
 		FleetName: req.Msg.FleetName,
@@ -36,8 +38,8 @@ func (s *backendService) AddRoomGroup(ctx context.Context, req *connect.Request[
 		case event := <-resp.EventChannel:
 			switch ev := event.(type) {
 			case *arena.RoomGroupEventRoomAllocated:
-				if err := stream.Send(&AddRoomGroupResponse{RoomGroupEvent: &AddRoomGroupResponse_RoomAllocated{
-					RoomAllocated: &RoomGroupEventRoomAllocated{
+				if err := stream.Send(&arenav1.AddRoomGroupResponse{RoomGroupEvent: &arenav1.AddRoomGroupResponse_RoomAllocated{
+					RoomAllocated: &arenav1.RoomGroupEventRoomAllocated{
 						RoomId:          ev.RoomID,
 						RoomInitialData: ev.RoomInitialData,
 					},
@@ -49,7 +51,7 @@ func (s *backendService) AddRoomGroup(ctx context.Context, req *connect.Request[
 	}
 }
 
-func (s *backendService) DeleteRoomGroup(ctx context.Context, req *connect.Request[DeleteRoomGroupRequest]) (*connect.Response[DeleteRoomGroupResponse], error) {
+func (s *backendService) DeleteRoomGroup(ctx context.Context, req *connect.Request[arenav1.DeleteRoomGroupRequest]) (*connect.Response[arenav1.DeleteRoomGroupResponse], error) {
 	if err := s.backend.DeleteRoomGroup(ctx, arena.DeleteRoomGroupRequest{
 		Address:   req.Msg.Address,
 		FleetName: req.Msg.FleetName,
@@ -59,10 +61,10 @@ func (s *backendService) DeleteRoomGroup(ctx context.Context, req *connect.Reque
 		}
 		return nil, err
 	}
-	return &connect.Response[DeleteRoomGroupResponse]{}, nil
+	return &connect.Response[arenav1.DeleteRoomGroupResponse]{}, nil
 }
 
-func (s *backendService) SetRoomResult(ctx context.Context, req *connect.Request[SetRoomResultRequest]) (*connect.Response[SetRoomResultResponse], error) {
+func (s *backendService) SetRoomResult(ctx context.Context, req *connect.Request[arenav1.SetRoomResultRequest]) (*connect.Response[arenav1.SetRoomResultResponse], error) {
 	if err := s.backend.SetRoomResult(ctx, arena.SetRoomResultRequest{
 		RoomID:         req.Msg.RoomId,
 		RoomResultData: req.Msg.RoomResultData,
@@ -73,10 +75,10 @@ func (s *backendService) SetRoomResult(ctx context.Context, req *connect.Request
 		}
 		return nil, err
 	}
-	return &connect.Response[SetRoomResultResponse]{}, nil
+	return &connect.Response[arenav1.SetRoomResultResponse]{}, nil
 }
 
-func (s *backendService) FreeRoom(ctx context.Context, req *connect.Request[FreeRoomRequest]) (*connect.Response[FreeRoomResponse], error) {
+func (s *backendService) FreeRoom(ctx context.Context, req *connect.Request[arenav1.FreeRoomRequest]) (*connect.Response[arenav1.FreeRoomResponse], error) {
 	if err := s.backend.FreeRoom(ctx, arena.FreeRoomRequest{
 		Address:   req.Msg.Address,
 		FleetName: req.Msg.FleetName,
@@ -86,5 +88,5 @@ func (s *backendService) FreeRoom(ctx context.Context, req *connect.Request[Free
 		}
 		return nil, err
 	}
-	return &connect.Response[FreeRoomResponse]{}, nil
+	return &connect.Response[arenav1.FreeRoomResponse]{}, nil
 }

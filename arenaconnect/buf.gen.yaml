@@ -13,9 +13,6 @@ plugins:
     out: .
     opt:
       - paths=source_relative
-      # to generate into the same package as the base .pb.go files
-      # https://github.com/connectrpc/connect-go/blob/46c8b00cab4b55c06a7c8f76fdcd6ca8d20e8629/cmd/protoc-gen-connect-go/main.go#L43-L45
-      - package_suffix=
   # dependencies
   - remote: buf.build/protocolbuffers/go:v1.36.6
     out: .

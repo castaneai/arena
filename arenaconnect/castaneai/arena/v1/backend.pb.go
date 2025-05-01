@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: backend.proto
+// source: castaneai/arena/v1/backend.proto
 
-package arenaconnect
+package arenav1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
@@ -33,7 +33,7 @@ type AddRoomGroupRequest struct {
 
 func (x *AddRoomGroupRequest) Reset() {
 	*x = AddRoomGroupRequest{}
-	mi := &file_backend_proto_msgTypes[0]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +45,7 @@ func (x *AddRoomGroupRequest) String() string {
 func (*AddRoomGroupRequest) ProtoMessage() {}
 
 func (x *AddRoomGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_backend_proto_msgTypes[0]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +58,7 @@ func (x *AddRoomGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddRoomGroupRequest.ProtoReflect.Descriptor instead.
 func (*AddRoomGroupRequest) Descriptor() ([]byte, []int) {
-	return file_backend_proto_rawDescGZIP(), []int{0}
+	return file_castaneai_arena_v1_backend_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AddRoomGroupRequest) GetAddress() string {
@@ -94,7 +94,7 @@ type AddRoomGroupResponse struct {
 
 func (x *AddRoomGroupResponse) Reset() {
 	*x = AddRoomGroupResponse{}
-	mi := &file_backend_proto_msgTypes[1]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -106,7 +106,7 @@ func (x *AddRoomGroupResponse) String() string {
 func (*AddRoomGroupResponse) ProtoMessage() {}
 
 func (x *AddRoomGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_backend_proto_msgTypes[1]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -119,7 +119,7 @@ func (x *AddRoomGroupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddRoomGroupResponse.ProtoReflect.Descriptor instead.
 func (*AddRoomGroupResponse) Descriptor() ([]byte, []int) {
-	return file_backend_proto_rawDescGZIP(), []int{1}
+	return file_castaneai_arena_v1_backend_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *AddRoomGroupResponse) GetRoomGroupEvent() isAddRoomGroupResponse_RoomGroupEvent {
@@ -158,7 +158,7 @@ type RoomGroupEventRoomAllocated struct {
 
 func (x *RoomGroupEventRoomAllocated) Reset() {
 	*x = RoomGroupEventRoomAllocated{}
-	mi := &file_backend_proto_msgTypes[2]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -170,7 +170,7 @@ func (x *RoomGroupEventRoomAllocated) String() string {
 func (*RoomGroupEventRoomAllocated) ProtoMessage() {}
 
 func (x *RoomGroupEventRoomAllocated) ProtoReflect() protoreflect.Message {
-	mi := &file_backend_proto_msgTypes[2]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -183,7 +183,7 @@ func (x *RoomGroupEventRoomAllocated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomGroupEventRoomAllocated.ProtoReflect.Descriptor instead.
 func (*RoomGroupEventRoomAllocated) Descriptor() ([]byte, []int) {
-	return file_backend_proto_rawDescGZIP(), []int{2}
+	return file_castaneai_arena_v1_backend_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RoomGroupEventRoomAllocated) GetRoomId() string {
@@ -210,7 +210,7 @@ type DeleteRoomGroupRequest struct {
 
 func (x *DeleteRoomGroupRequest) Reset() {
 	*x = DeleteRoomGroupRequest{}
-	mi := &file_backend_proto_msgTypes[3]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -222,7 +222,7 @@ func (x *DeleteRoomGroupRequest) String() string {
 func (*DeleteRoomGroupRequest) ProtoMessage() {}
 
 func (x *DeleteRoomGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_backend_proto_msgTypes[3]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -235,7 +235,7 @@ func (x *DeleteRoomGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRoomGroupRequest.ProtoReflect.Descriptor instead.
 func (*DeleteRoomGroupRequest) Descriptor() ([]byte, []int) {
-	return file_backend_proto_rawDescGZIP(), []int{3}
+	return file_castaneai_arena_v1_backend_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DeleteRoomGroupRequest) GetAddress() string {
@@ -260,7 +260,7 @@ type DeleteRoomGroupResponse struct {
 
 func (x *DeleteRoomGroupResponse) Reset() {
 	*x = DeleteRoomGroupResponse{}
-	mi := &file_backend_proto_msgTypes[4]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -272,7 +272,7 @@ func (x *DeleteRoomGroupResponse) String() string {
 func (*DeleteRoomGroupResponse) ProtoMessage() {}
 
 func (x *DeleteRoomGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_backend_proto_msgTypes[4]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -285,7 +285,7 @@ func (x *DeleteRoomGroupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRoomGroupResponse.ProtoReflect.Descriptor instead.
 func (*DeleteRoomGroupResponse) Descriptor() ([]byte, []int) {
-	return file_backend_proto_rawDescGZIP(), []int{4}
+	return file_castaneai_arena_v1_backend_proto_rawDescGZIP(), []int{4}
 }
 
 type SetRoomResultRequest struct {
@@ -299,7 +299,7 @@ type SetRoomResultRequest struct {
 
 func (x *SetRoomResultRequest) Reset() {
 	*x = SetRoomResultRequest{}
-	mi := &file_backend_proto_msgTypes[5]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -311,7 +311,7 @@ func (x *SetRoomResultRequest) String() string {
 func (*SetRoomResultRequest) ProtoMessage() {}
 
 func (x *SetRoomResultRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_backend_proto_msgTypes[5]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -324,7 +324,7 @@ func (x *SetRoomResultRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRoomResultRequest.ProtoReflect.Descriptor instead.
 func (*SetRoomResultRequest) Descriptor() ([]byte, []int) {
-	return file_backend_proto_rawDescGZIP(), []int{5}
+	return file_castaneai_arena_v1_backend_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SetRoomResultRequest) GetRoomId() string {
@@ -356,7 +356,7 @@ type SetRoomResultResponse struct {
 
 func (x *SetRoomResultResponse) Reset() {
 	*x = SetRoomResultResponse{}
-	mi := &file_backend_proto_msgTypes[6]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -368,7 +368,7 @@ func (x *SetRoomResultResponse) String() string {
 func (*SetRoomResultResponse) ProtoMessage() {}
 
 func (x *SetRoomResultResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_backend_proto_msgTypes[6]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -381,7 +381,7 @@ func (x *SetRoomResultResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRoomResultResponse.ProtoReflect.Descriptor instead.
 func (*SetRoomResultResponse) Descriptor() ([]byte, []int) {
-	return file_backend_proto_rawDescGZIP(), []int{6}
+	return file_castaneai_arena_v1_backend_proto_rawDescGZIP(), []int{6}
 }
 
 type FreeRoomRequest struct {
@@ -394,7 +394,7 @@ type FreeRoomRequest struct {
 
 func (x *FreeRoomRequest) Reset() {
 	*x = FreeRoomRequest{}
-	mi := &file_backend_proto_msgTypes[7]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -406,7 +406,7 @@ func (x *FreeRoomRequest) String() string {
 func (*FreeRoomRequest) ProtoMessage() {}
 
 func (x *FreeRoomRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_backend_proto_msgTypes[7]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -419,7 +419,7 @@ func (x *FreeRoomRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FreeRoomRequest.ProtoReflect.Descriptor instead.
 func (*FreeRoomRequest) Descriptor() ([]byte, []int) {
-	return file_backend_proto_rawDescGZIP(), []int{7}
+	return file_castaneai_arena_v1_backend_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *FreeRoomRequest) GetAddress() string {
@@ -444,7 +444,7 @@ type FreeRoomResponse struct {
 
 func (x *FreeRoomResponse) Reset() {
 	*x = FreeRoomResponse{}
-	mi := &file_backend_proto_msgTypes[8]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -456,7 +456,7 @@ func (x *FreeRoomResponse) String() string {
 func (*FreeRoomResponse) ProtoMessage() {}
 
 func (x *FreeRoomResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_backend_proto_msgTypes[8]
+	mi := &file_castaneai_arena_v1_backend_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -469,21 +469,21 @@ func (x *FreeRoomResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FreeRoomResponse.ProtoReflect.Descriptor instead.
 func (*FreeRoomResponse) Descriptor() ([]byte, []int) {
-	return file_backend_proto_rawDescGZIP(), []int{8}
+	return file_castaneai_arena_v1_backend_proto_rawDescGZIP(), []int{8}
 }
 
-var File_backend_proto protoreflect.FileDescriptor
+var File_castaneai_arena_v1_backend_proto protoreflect.FileDescriptor
 
-const file_backend_proto_rawDesc = "" +
+const file_castaneai_arena_v1_backend_proto_rawDesc = "" +
 	"\n" +
-	"\rbackend.proto\x12\x05arena\x1a\x1bbuf/validate/validate.proto\"\x82\x01\n" +
+	" castaneai/arena/v1/backend.proto\x12\x12castaneai.arena.v1\x1a\x1bbuf/validate/validate.proto\"\x82\x01\n" +
 	"\x13AddRoomGroupRequest\x12 \n" +
 	"\aaddress\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\aaddress\x12%\n" +
 	"\n" +
 	"fleet_name\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\tfleetName\x12\"\n" +
-	"\bcapacity\x18\x03 \x01(\rB\x06\xbaH\x03\xc8\x01\x01R\bcapacity\"w\n" +
-	"\x14AddRoomGroupResponse\x12K\n" +
-	"\x0eroom_allocated\x18\x01 \x01(\v2\".arena.RoomGroupEventRoomAllocatedH\x00R\rroomAllocatedB\x12\n" +
+	"\bcapacity\x18\x03 \x01(\rB\x06\xbaH\x03\xc8\x01\x01R\bcapacity\"\x84\x01\n" +
+	"\x14AddRoomGroupResponse\x12X\n" +
+	"\x0eroom_allocated\x18\x01 \x01(\v2/.castaneai.arena.v1.RoomGroupEventRoomAllocatedH\x00R\rroomAllocatedB\x12\n" +
 	"\x10room_group_event\"j\n" +
 	"\x1bRoomGroupEventRoomAllocated\x12\x1f\n" +
 	"\aroom_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x06roomId\x12*\n" +
@@ -502,48 +502,48 @@ const file_backend_proto_rawDesc = "" +
 	"\aaddress\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\aaddress\x12%\n" +
 	"\n" +
 	"fleet_name\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\tfleetName\"\x12\n" +
-	"\x10FreeRoomResponse2\xb6\x02\n" +
-	"\x0eBackendService\x12I\n" +
-	"\fAddRoomGroup\x12\x1a.arena.AddRoomGroupRequest\x1a\x1b.arena.AddRoomGroupResponse0\x01\x12P\n" +
-	"\x0fDeleteRoomGroup\x12\x1d.arena.DeleteRoomGroupRequest\x1a\x1e.arena.DeleteRoomGroupResponse\x12J\n" +
-	"\rSetRoomResult\x12\x1b.arena.SetRoomResultRequest\x1a\x1c.arena.SetRoomResultResponse\x12;\n" +
-	"\bFreeRoom\x12\x16.arena.FreeRoomRequest\x1a\x17.arena.FreeRoomResponseBv\n" +
-	"\tcom.arenaB\fBackendProtoP\x01Z'github.com/castaneai/arena/arenaconnect\xa2\x02\x03AXX\xaa\x02\x05Arena\xca\x02\x05Arena\xe2\x02\x11Arena\\GPBMetadata\xea\x02\x05Arenab\x06proto3"
+	"\x10FreeRoomResponse2\x9e\x03\n" +
+	"\x0eBackendService\x12c\n" +
+	"\fAddRoomGroup\x12'.castaneai.arena.v1.AddRoomGroupRequest\x1a(.castaneai.arena.v1.AddRoomGroupResponse0\x01\x12j\n" +
+	"\x0fDeleteRoomGroup\x12*.castaneai.arena.v1.DeleteRoomGroupRequest\x1a+.castaneai.arena.v1.DeleteRoomGroupResponse\x12d\n" +
+	"\rSetRoomResult\x12(.castaneai.arena.v1.SetRoomResultRequest\x1a).castaneai.arena.v1.SetRoomResultResponse\x12U\n" +
+	"\bFreeRoom\x12#.castaneai.arena.v1.FreeRoomRequest\x1a$.castaneai.arena.v1.FreeRoomResponseB\xd4\x01\n" +
+	"\x16com.castaneai.arena.v1B\fBackendProtoP\x01ZBgithub.com/castaneai/arena/arenaconnect/castaneai/arena/v1;arenav1\xa2\x02\x03CAX\xaa\x02\x12Castaneai.Arena.V1\xca\x02\x12Castaneai\\Arena\\V1\xe2\x02\x1eCastaneai\\Arena\\V1\\GPBMetadata\xea\x02\x14Castaneai::Arena::V1b\x06proto3"
 
 var (
-	file_backend_proto_rawDescOnce sync.Once
-	file_backend_proto_rawDescData []byte
+	file_castaneai_arena_v1_backend_proto_rawDescOnce sync.Once
+	file_castaneai_arena_v1_backend_proto_rawDescData []byte
 )
 
-func file_backend_proto_rawDescGZIP() []byte {
-	file_backend_proto_rawDescOnce.Do(func() {
-		file_backend_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_backend_proto_rawDesc), len(file_backend_proto_rawDesc)))
+func file_castaneai_arena_v1_backend_proto_rawDescGZIP() []byte {
+	file_castaneai_arena_v1_backend_proto_rawDescOnce.Do(func() {
+		file_castaneai_arena_v1_backend_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_castaneai_arena_v1_backend_proto_rawDesc), len(file_castaneai_arena_v1_backend_proto_rawDesc)))
 	})
-	return file_backend_proto_rawDescData
+	return file_castaneai_arena_v1_backend_proto_rawDescData
 }
 
-var file_backend_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
-var file_backend_proto_goTypes = []any{
-	(*AddRoomGroupRequest)(nil),         // 0: arena.AddRoomGroupRequest
-	(*AddRoomGroupResponse)(nil),        // 1: arena.AddRoomGroupResponse
-	(*RoomGroupEventRoomAllocated)(nil), // 2: arena.RoomGroupEventRoomAllocated
-	(*DeleteRoomGroupRequest)(nil),      // 3: arena.DeleteRoomGroupRequest
-	(*DeleteRoomGroupResponse)(nil),     // 4: arena.DeleteRoomGroupResponse
-	(*SetRoomResultRequest)(nil),        // 5: arena.SetRoomResultRequest
-	(*SetRoomResultResponse)(nil),       // 6: arena.SetRoomResultResponse
-	(*FreeRoomRequest)(nil),             // 7: arena.FreeRoomRequest
-	(*FreeRoomResponse)(nil),            // 8: arena.FreeRoomResponse
+var file_castaneai_arena_v1_backend_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_castaneai_arena_v1_backend_proto_goTypes = []any{
+	(*AddRoomGroupRequest)(nil),         // 0: castaneai.arena.v1.AddRoomGroupRequest
+	(*AddRoomGroupResponse)(nil),        // 1: castaneai.arena.v1.AddRoomGroupResponse
+	(*RoomGroupEventRoomAllocated)(nil), // 2: castaneai.arena.v1.RoomGroupEventRoomAllocated
+	(*DeleteRoomGroupRequest)(nil),      // 3: castaneai.arena.v1.DeleteRoomGroupRequest
+	(*DeleteRoomGroupResponse)(nil),     // 4: castaneai.arena.v1.DeleteRoomGroupResponse
+	(*SetRoomResultRequest)(nil),        // 5: castaneai.arena.v1.SetRoomResultRequest
+	(*SetRoomResultResponse)(nil),       // 6: castaneai.arena.v1.SetRoomResultResponse
+	(*FreeRoomRequest)(nil),             // 7: castaneai.arena.v1.FreeRoomRequest
+	(*FreeRoomResponse)(nil),            // 8: castaneai.arena.v1.FreeRoomResponse
 }
-var file_backend_proto_depIdxs = []int32{
-	2, // 0: arena.AddRoomGroupResponse.room_allocated:type_name -> arena.RoomGroupEventRoomAllocated
-	0, // 1: arena.BackendService.AddRoomGroup:input_type -> arena.AddRoomGroupRequest
-	3, // 2: arena.BackendService.DeleteRoomGroup:input_type -> arena.DeleteRoomGroupRequest
-	5, // 3: arena.BackendService.SetRoomResult:input_type -> arena.SetRoomResultRequest
-	7, // 4: arena.BackendService.FreeRoom:input_type -> arena.FreeRoomRequest
-	1, // 5: arena.BackendService.AddRoomGroup:output_type -> arena.AddRoomGroupResponse
-	4, // 6: arena.BackendService.DeleteRoomGroup:output_type -> arena.DeleteRoomGroupResponse
-	6, // 7: arena.BackendService.SetRoomResult:output_type -> arena.SetRoomResultResponse
-	8, // 8: arena.BackendService.FreeRoom:output_type -> arena.FreeRoomResponse
+var file_castaneai_arena_v1_backend_proto_depIdxs = []int32{
+	2, // 0: castaneai.arena.v1.AddRoomGroupResponse.room_allocated:type_name -> castaneai.arena.v1.RoomGroupEventRoomAllocated
+	0, // 1: castaneai.arena.v1.BackendService.AddRoomGroup:input_type -> castaneai.arena.v1.AddRoomGroupRequest
+	3, // 2: castaneai.arena.v1.BackendService.DeleteRoomGroup:input_type -> castaneai.arena.v1.DeleteRoomGroupRequest
+	5, // 3: castaneai.arena.v1.BackendService.SetRoomResult:input_type -> castaneai.arena.v1.SetRoomResultRequest
+	7, // 4: castaneai.arena.v1.BackendService.FreeRoom:input_type -> castaneai.arena.v1.FreeRoomRequest
+	1, // 5: castaneai.arena.v1.BackendService.AddRoomGroup:output_type -> castaneai.arena.v1.AddRoomGroupResponse
+	4, // 6: castaneai.arena.v1.BackendService.DeleteRoomGroup:output_type -> castaneai.arena.v1.DeleteRoomGroupResponse
+	6, // 7: castaneai.arena.v1.BackendService.SetRoomResult:output_type -> castaneai.arena.v1.SetRoomResultResponse
+	8, // 8: castaneai.arena.v1.BackendService.FreeRoom:output_type -> castaneai.arena.v1.FreeRoomResponse
 	5, // [5:9] is the sub-list for method output_type
 	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -551,29 +551,29 @@ var file_backend_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_backend_proto_init() }
-func file_backend_proto_init() {
-	if File_backend_proto != nil {
+func init() { file_castaneai_arena_v1_backend_proto_init() }
+func file_castaneai_arena_v1_backend_proto_init() {
+	if File_castaneai_arena_v1_backend_proto != nil {
 		return
 	}
-	file_backend_proto_msgTypes[1].OneofWrappers = []any{
+	file_castaneai_arena_v1_backend_proto_msgTypes[1].OneofWrappers = []any{
 		(*AddRoomGroupResponse_RoomAllocated)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backend_proto_rawDesc), len(file_backend_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_castaneai_arena_v1_backend_proto_rawDesc), len(file_castaneai_arena_v1_backend_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_backend_proto_goTypes,
-		DependencyIndexes: file_backend_proto_depIdxs,
-		MessageInfos:      file_backend_proto_msgTypes,
+		GoTypes:           file_castaneai_arena_v1_backend_proto_goTypes,
+		DependencyIndexes: file_castaneai_arena_v1_backend_proto_depIdxs,
+		MessageInfos:      file_castaneai_arena_v1_backend_proto_msgTypes,
 	}.Build()
-	File_backend_proto = out.File
-	file_backend_proto_goTypes = nil
-	file_backend_proto_depIdxs = nil
+	File_castaneai_arena_v1_backend_proto = out.File
+	file_castaneai_arena_v1_backend_proto_goTypes = nil
+	file_castaneai_arena_v1_backend_proto_depIdxs = nil
 }

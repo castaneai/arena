@@ -19,6 +19,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 
 	"github.com/castaneai/arena/arenaconnect"
+	"github.com/castaneai/arena/arenaconnect/castaneai/arena/v1/arenav1connect"
 	"github.com/castaneai/arena/arenaredis"
 )
 
@@ -50,8 +51,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create interceptor: %v", err)
 	}
-	mux.Handle(arenaconnect.NewFrontendServiceHandler(arenaconnect.NewFrontendService(frontend), connect.WithInterceptors(interceptor)))
-	mux.Handle(arenaconnect.NewBackendServiceHandler(arenaconnect.NewBackendService(backend), connect.WithInterceptors(interceptor)))
+	mux.Handle(arenav1connect.NewFrontendServiceHandler(arenaconnect.NewFrontendService(frontend), connect.WithInterceptors(interceptor)))
+	mux.Handle(arenav1connect.NewBackendServiceHandler(arenaconnect.NewBackendService(backend), connect.WithInterceptors(interceptor)))
 	handler := h2c.NewHandler(mux, &http2.Server{})
 	addr := fmt.Sprintf(":%s", conf.ListenPort)
 	server := &http.Server{Addr: addr, Handler: handler}
