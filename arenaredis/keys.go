@@ -15,3 +15,7 @@ func redisKeyAvailableRoomGroups(prefix, fleetName string) string {
 func redisKeyRoomGroupEventStream(prefix, fleetName, address string) string {
 	return fmt.Sprintf("%s%s:room_group_events:%s", prefix, fleetName, address)
 }
+
+func redisKeyRoomResult(prefix, roomID string) string {
+	return fmt.Sprintf("%s%s:room_result", prefix, roomID)
+}

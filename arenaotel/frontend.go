@@ -2,7 +2,6 @@ package arenaotel
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -23,14 +22,14 @@ var (
 	roomAllocatedStatusError     = roomAllocateStatusKey.String("error")
 )
 
-type roomAllocator struct {
-	inner                arena.RoomAllocator
+type frontend struct {
+	inner                arena.Frontend
 	meterProvider        metric.MeterProvider
 	roomAllocatedCount   metric.Int64Counter
 	roomAllocatedLatency metric.Float64Histogram
 }
 
-func NewRoomAllocator(inner arena.RoomAllocator) (arena.RoomAllocator, error) {
+func NewFrontend(inner arena.Frontend) (arena.Frontend, error) {
 	meterProvider := otel.GetMeterProvider()
 	meter := meterProvider.Meter(scopeName)
 	roomAllocatedCount, err := meter.Int64Counter("arena.room_allocated.count_total")
@@ -42,7 +41,7 @@ func NewRoomAllocator(inner arena.RoomAllocator) (arena.RoomAllocator, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &roomAllocator{
+	return &frontend{
 		inner:                inner,
 		meterProvider:        meterProvider,
 		roomAllocatedCount:   roomAllocatedCount,
@@ -50,7 +49,7 @@ func NewRoomAllocator(inner arena.RoomAllocator) (arena.RoomAllocator, error) {
 	}, nil
 }
 
-func (a *roomAllocator) AllocateRoom(ctx context.Context, req arena.AllocateRoomRequest) (*arena.AllocateRoomResponse, error) {
+func (a *frontend) AllocateRoom(ctx context.Context, req arena.AllocateRoomRequest) (*arena.AllocateRoomResponse, error) {
 	fleetNameAttr := fleetNameKey.String(req.FleetName)
 	statusAttr := roomAllocatedStatusOK
 	start := time.Now()
@@ -60,7 +59,7 @@ func (a *roomAllocator) AllocateRoom(ctx context.Context, req arena.AllocateRoom
 	}()
 	resp, err := a.inner.AllocateRoom(ctx, req)
 	if err != nil {
-		if errors.Is(err, arena.ErrRoomExhausted) {
+		if arena.ErrorHasStatus(err, arena.ErrorStatusResourceExhausted) {
 			statusAttr = roomAllocatedStatusExhausted
 		} else {
 			statusAttr = roomAllocatedStatusError
@@ -68,4 +67,9 @@ func (a *roomAllocator) AllocateRoom(ctx context.Context, req arena.AllocateRoom
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (a *frontend) GetRoomResult(ctx context.Context, req arena.GetRoomResultRequest) (*arena.GetRoomResultResponse, error) {
+	// TODO: implement
+	return a.inner.GetRoomResult(ctx, req)
 }
