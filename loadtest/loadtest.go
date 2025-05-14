@@ -61,7 +61,7 @@ func main() {
 		os.Exit(1)
 	}
 	backend := arenaredis.NewBackend(ctx, "arenaloadtest:", redisClient)
-	_, err = backend.AddRoomGroup(ctx, arena.AddRoomGroupRequest{FleetName: fleetName, Address: "dummy", Capacity: 2000})
+	_, err = backend.NewContainer(ctx, arena.NewContainerRequest{FleetName: fleetName, Address: "dummy", Capacity: 2000})
 	if err != nil {
 		err := fmt.Errorf("failed to add room group: %w", err)
 		slog.Error(err.Error(), "error", err)

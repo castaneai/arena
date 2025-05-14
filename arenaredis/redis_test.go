@@ -16,56 +16,54 @@ const (
 	chanReadTimeout  = 10 * time.Second
 )
 
-func TestAllocator(t *testing.T) {
+func TestAllocation(t *testing.T) {
 	fleet1Name := "fleet1"
 	ctx := t.Context()
-	client, redis := newRedisClientWithMiniRedis(t)
-	backend := NewBackend(ctx, testingKeyPrefix, client)
-	frontend := NewFrontend(testingKeyPrefix, client)
+	client, pubSubClient, redis := newRedisClientWithMiniRedis(t)
+	backend := NewBackend(testingKeyPrefix, client)
+	frontend := NewFrontend(testingKeyPrefix, client, pubSubClient)
 
-	// group1: (0/2)
-	group1, err := backend.AddRoomGroup(ctx, arena.AddRoomGroupRequest{Address: "group1", Capacity: 2, FleetName: fleet1Name})
+	// new con1: [(free), (free)] (1/2)
+	con1, err := backend.NewContainer(ctx, arena.NewContainerRequest{Address: "con1", Capacity: 2, FleetName: fleet1Name})
 	require.NoError(t, err)
 
-	// group1: (1/2)
+	// con1: [room1, (free)] (1/2)
 	room1, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room1", FleetName: fleet1Name})
 	require.NoError(t, err)
-	require.Equal(t, "group1", room1.Address)
-	ev := mustReadChan(t, group1.EventChannel).(*arena.RoomGroupEventRoomAllocated)
+	require.Equal(t, "con1", room1.Address)
+	ev := mustReadChan(t, con1.AllocationChannel)
 	require.Equal(t, "room1", ev.RoomID)
 
-	// group1: (1/2)
-	// group2: (0/2)
-	group2, err := backend.AddRoomGroup(ctx, arena.AddRoomGroupRequest{Address: "group2", Capacity: 2, FleetName: fleet1Name})
-	require.NoError(t, err)
-
-	// group1: (2/2)
-	// group2: (0/2)
+	// con1: [room1, room2] (2/2)
 	room2, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room2", FleetName: fleet1Name, RoomInitialData: []byte("hello")})
 	require.NoError(t, err)
-	require.Equal(t, "group1", room2.Address)
-	ev = mustReadChan(t, group1.EventChannel).(*arena.RoomGroupEventRoomAllocated)
+	require.Equal(t, "con1", room2.Address)
+	ev = mustReadChan(t, con1.AllocationChannel)
 	require.Equal(t, "room2", ev.RoomID)
 	require.Equal(t, "hello", string(ev.RoomInitialData))
 
-	// group1: (2/2)
-	// group2: (1/2)
+	// con1: [room1, room2] (2/2)
+	// new con2: [(free), (free)] (0/2)
+	con2, err := backend.NewContainer(ctx, arena.NewContainerRequest{Address: "con2", Capacity: 2, FleetName: fleet1Name})
+	require.NoError(t, err)
+
+	// con1: [room1, room2] (2/2)
+	// con2: [room3, (free)] (1/2)
 	room3, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room3", FleetName: fleet1Name})
 	require.NoError(t, err)
-	require.Equal(t, "group2", room3.Address)
-	ev = mustReadChan(t, group2.EventChannel).(*arena.RoomGroupEventRoomAllocated)
+	require.Equal(t, "con2", room3.Address)
+	ev = mustReadChan(t, con2.AllocationChannel)
 	require.Equal(t, "room3", ev.RoomID)
 
-	// all room groups are full
-	// group1: (2/2)
-	// group2: (2/2)
+	// con1: [room1, room2] (2/2)
+	// con2: [room3, room4] (2/2)
 	room4, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room4", FleetName: fleet1Name})
 	require.NoError(t, err)
-	require.Equal(t, "group2", room4.Address)
-	ev = mustReadChan(t, group2.EventChannel).(*arena.RoomGroupEventRoomAllocated)
+	require.Equal(t, "con2", room4.Address)
+	ev = mustReadChan(t, con2.AllocationChannel)
 	require.Equal(t, "room4", ev.RoomID)
 
-	// cannot allocate because all RoomGroups are full; returns resource exhausted.
+	// cannot allocate because all containers are full; returns resource exhausted.
 	_, err = frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room5", FleetName: fleet1Name})
 	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusResourceExhausted))
 
@@ -93,32 +91,36 @@ func TestAllocator(t *testing.T) {
 	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusNotFound))
 
 	// FreeRoom will again free up a slot, which can be allocated
-	// group1: (1/2)
-	// group2: (2/2)
-	err = backend.FreeRoom(ctx, arena.FreeRoomRequest{Address: "group1", FleetName: fleet1Name})
+	// con1: [room1, (free)] (1/2)
+	// con2: [room3, room4] (2/2)
+	err = backend.FreeRoom(ctx, arena.FreeRoomRequest{Address: "con1", FleetName: fleet1Name})
 	require.NoError(t, err)
 
 	room5, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room5", FleetName: fleet1Name})
 	require.NoError(t, err)
-	require.Equal(t, "group1", room5.Address)
-	ev = mustReadChan(t, group1.EventChannel).(*arena.RoomGroupEventRoomAllocated)
+	require.Equal(t, "con1", room5.Address)
+	ev = mustReadChan(t, con1.AllocationChannel)
 	require.Equal(t, "room5", ev.RoomID)
 
-	err = backend.DeleteRoomGroup(ctx, arena.DeleteRoomGroupRequest{Address: "group1", FleetName: fleet1Name})
+	err = backend.DeleteContainer(ctx, arena.DeleteContainerRequest{Address: "con1", FleetName: fleet1Name})
 	require.NoError(t, err)
-	err = backend.DeleteRoomGroup(ctx, arena.DeleteRoomGroupRequest{Address: "group2", FleetName: fleet1Name})
+	err = backend.DeleteContainer(ctx, arena.DeleteContainerRequest{Address: "con2", FleetName: fleet1Name})
 	require.NoError(t, err)
 }
 
-func newRedisClientWithMiniRedis(t *testing.T) (rueidis.Client, *miniredis.Miniredis) {
+func newRedisClientWithMiniRedis(t *testing.T) (rueidis.Client, rueidis.Client, *miniredis.Miniredis) {
 	t.Helper()
 	r := miniredis.RunT(t)
 	t.Cleanup(func() { r.Close() })
 	client, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{r.Addr()}, DisableCache: true})
 	if err != nil {
-		t.Fatalf("failed to create redis client: %+v", err)
+		t.Fatalf("failed to create frontend redis client: %+v", err)
 	}
-	return client, r
+	pubSubClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{r.Addr()}, DisableCache: true})
+	if err != nil {
+		t.Fatalf("failed to create pub/sub redis client: %+v", err)
+	}
+	return client, pubSubClient, r
 }
 
 func mustReadChan[T any](t *testing.T, ch <-chan T) T {

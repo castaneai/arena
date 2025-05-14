@@ -5,41 +5,29 @@ import (
 	"time"
 )
 
-const (
-	EventNameRoomAllocated = "RoomAllocated"
-)
-
 type Backend interface {
-	AddRoomGroup(ctx context.Context, req AddRoomGroupRequest) (*AddRoomGroupResponse, error)
-	DeleteRoomGroup(ctx context.Context, req DeleteRoomGroupRequest) error
+	NewContainer(ctx context.Context, req NewContainerRequest) (*NewContainerResponse, error)
+	DeleteContainer(ctx context.Context, req DeleteContainerRequest) error
 	SetRoomResult(ctx context.Context, req SetRoomResultRequest) error
 	FreeRoom(ctx context.Context, req FreeRoomRequest) error
 }
 
-type AddRoomGroupRequest struct {
+type NewContainerRequest struct {
 	Address   string
 	FleetName string
 	Capacity  int
 }
 
-type AddRoomGroupResponse struct {
-	EventChannel <-chan RoomGroupEvent
+type NewContainerResponse struct {
+	AllocationChannel <-chan AllocatedRoom
 }
 
-type RoomGroupEvent interface {
-	RoomGroupEventName() string
-}
-
-type RoomGroupEventRoomAllocated struct {
+type AllocatedRoom struct {
 	RoomID          string
 	RoomInitialData []byte
 }
 
-func (e *RoomGroupEventRoomAllocated) RoomGroupEventName() string {
-	return EventNameRoomAllocated
-}
-
-type DeleteRoomGroupRequest struct {
+type DeleteContainerRequest struct {
 	Address   string
 	FleetName string
 }

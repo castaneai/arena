@@ -20,7 +20,7 @@ func NewBackendService(backend arena.Backend) arenav1connect.BackendServiceHandl
 }
 
 func (s *backendService) AddRoomGroup(ctx context.Context, req *connect.Request[arenav1.AddRoomGroupRequest], stream *connect.ServerStream[arenav1.AddRoomGroupResponse]) error {
-	resp, err := s.backend.AddRoomGroup(ctx, arena.AddRoomGroupRequest{
+	resp, err := s.backend.NewContainer(ctx, arena.NewContainerRequest{
 		Address:   req.Msg.Address,
 		FleetName: req.Msg.FleetName,
 		Capacity:  int(req.Msg.Capacity),
@@ -35,7 +35,7 @@ func (s *backendService) AddRoomGroup(ctx context.Context, req *connect.Request[
 		select {
 		case <-ctx.Done():
 			return connect.NewError(connect.CodeCanceled, ctx.Err())
-		case event := <-resp.EventChannel:
+		case event := <-resp.AllocationChannel:
 			switch ev := event.(type) {
 			case *arena.RoomGroupEventRoomAllocated:
 				if err := stream.Send(&arenav1.AddRoomGroupResponse{RoomGroupEvent: &arenav1.AddRoomGroupResponse_RoomAllocated{
@@ -52,7 +52,7 @@ func (s *backendService) AddRoomGroup(ctx context.Context, req *connect.Request[
 }
 
 func (s *backendService) DeleteRoomGroup(ctx context.Context, req *connect.Request[arenav1.DeleteRoomGroupRequest]) (*connect.Response[arenav1.DeleteRoomGroupResponse], error) {
-	if err := s.backend.DeleteRoomGroup(ctx, arena.DeleteRoomGroupRequest{
+	if err := s.backend.DeleteContainer(ctx, arena.DeleteContainerRequest{
 		Address:   req.Msg.Address,
 		FleetName: req.Msg.FleetName,
 	}); err != nil {
