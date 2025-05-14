@@ -1,21 +1,27 @@
 package arenaredis
 
-import "fmt"
-
-const (
-	redisStreamFieldNameEventName       = "RoomGroupEventName"
-	redisStreamFieldNameRoomID          = "RoomID"
-	redisStreamFieldNameRoomInitialData = "RoomInitialData"
+import (
+	"fmt"
 )
 
-func redisKeyAvailableRoomGroups(prefix, fleetName string) string {
-	return fmt.Sprintf("%s%s:available_room_groups", prefix, fleetName)
-}
+const (
+	streamFieldRequestID       = "RequestID"
+	streamFieldRoomID          = "RoomID"
+	streamFieldRoomInitialData = "RoomInitialData"
+)
 
-func redisKeyRoomGroupEventStream(prefix, fleetName, address string) string {
-	return fmt.Sprintf("%s%s:room_group_events:%s", prefix, fleetName, address)
+func redisKeyFleetStream(prefix, fleetName string) string {
+	return fmt.Sprintf("%s%s", prefix, fleetName)
 }
 
 func redisKeyRoomResult(prefix, roomID string) string {
 	return fmt.Sprintf("%s%s:room_result", prefix, roomID)
+}
+
+func redisPubSubKeyAllocationAck(prefix, fleetName, requestID string) string {
+	return fmt.Sprintf("%s%s:allocation_ack:%s", prefix, fleetName, requestID)
+}
+
+func redisFleetConsumerGroup(prefix, fleetName string) string {
+	return fmt.Sprintf("%s%s", prefix, fleetName)
 }

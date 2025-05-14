@@ -34,11 +34,11 @@ const (
 // period.
 const (
 	// BackendServiceAddRoomGroupProcedure is the fully-qualified name of the BackendService's
-	// AddRoomGroup RPC.
-	BackendServiceAddRoomGroupProcedure = "/castaneai.arena.v1.BackendService/AddRoomGroup"
+	// NewContainer RPC.
+	BackendServiceAddRoomGroupProcedure = "/castaneai.arena.v1.BackendService/NewContainer"
 	// BackendServiceDeleteRoomGroupProcedure is the fully-qualified name of the BackendService's
-	// DeleteRoomGroup RPC.
-	BackendServiceDeleteRoomGroupProcedure = "/castaneai.arena.v1.BackendService/DeleteRoomGroup"
+	// DeleteContainer RPC.
+	BackendServiceDeleteRoomGroupProcedure = "/castaneai.arena.v1.BackendService/DeleteContainer"
 	// BackendServiceSetRoomResultProcedure is the fully-qualified name of the BackendService's
 	// SetRoomResult RPC.
 	BackendServiceSetRoomResultProcedure = "/castaneai.arena.v1.BackendService/SetRoomResult"
@@ -68,13 +68,13 @@ func NewBackendServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 		addRoomGroup: connect.NewClient[v1.AddRoomGroupRequest, v1.AddRoomGroupResponse](
 			httpClient,
 			baseURL+BackendServiceAddRoomGroupProcedure,
-			connect.WithSchema(backendServiceMethods.ByName("AddRoomGroup")),
+			connect.WithSchema(backendServiceMethods.ByName("NewContainer")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteRoomGroup: connect.NewClient[v1.DeleteRoomGroupRequest, v1.DeleteRoomGroupResponse](
 			httpClient,
 			baseURL+BackendServiceDeleteRoomGroupProcedure,
-			connect.WithSchema(backendServiceMethods.ByName("DeleteRoomGroup")),
+			connect.WithSchema(backendServiceMethods.ByName("DeleteContainer")),
 			connect.WithClientOptions(opts...),
 		),
 		setRoomResult: connect.NewClient[v1.SetRoomResultRequest, v1.SetRoomResultResponse](
@@ -100,12 +100,12 @@ type backendServiceClient struct {
 	freeRoom        *connect.Client[v1.FreeRoomRequest, v1.FreeRoomResponse]
 }
 
-// AddRoomGroup calls castaneai.arena.v1.BackendService.AddRoomGroup.
+// AddRoomGroup calls castaneai.arena.v1.BackendService.NewContainer.
 func (c *backendServiceClient) AddRoomGroup(ctx context.Context, req *connect.Request[v1.AddRoomGroupRequest]) (*connect.ServerStreamForClient[v1.AddRoomGroupResponse], error) {
 	return c.addRoomGroup.CallServerStream(ctx, req)
 }
 
-// DeleteRoomGroup calls castaneai.arena.v1.BackendService.DeleteRoomGroup.
+// DeleteRoomGroup calls castaneai.arena.v1.BackendService.DeleteContainer.
 func (c *backendServiceClient) DeleteRoomGroup(ctx context.Context, req *connect.Request[v1.DeleteRoomGroupRequest]) (*connect.Response[v1.DeleteRoomGroupResponse], error) {
 	return c.deleteRoomGroup.CallUnary(ctx, req)
 }
@@ -138,13 +138,13 @@ func NewBackendServiceHandler(svc BackendServiceHandler, opts ...connect.Handler
 	backendServiceAddRoomGroupHandler := connect.NewServerStreamHandler(
 		BackendServiceAddRoomGroupProcedure,
 		svc.AddRoomGroup,
-		connect.WithSchema(backendServiceMethods.ByName("AddRoomGroup")),
+		connect.WithSchema(backendServiceMethods.ByName("NewContainer")),
 		connect.WithHandlerOptions(opts...),
 	)
 	backendServiceDeleteRoomGroupHandler := connect.NewUnaryHandler(
 		BackendServiceDeleteRoomGroupProcedure,
 		svc.DeleteRoomGroup,
-		connect.WithSchema(backendServiceMethods.ByName("DeleteRoomGroup")),
+		connect.WithSchema(backendServiceMethods.ByName("DeleteContainer")),
 		connect.WithHandlerOptions(opts...),
 	)
 	backendServiceSetRoomResultHandler := connect.NewUnaryHandler(
@@ -179,11 +179,11 @@ func NewBackendServiceHandler(svc BackendServiceHandler, opts ...connect.Handler
 type UnimplementedBackendServiceHandler struct{}
 
 func (UnimplementedBackendServiceHandler) AddRoomGroup(context.Context, *connect.Request[v1.AddRoomGroupRequest], *connect.ServerStream[v1.AddRoomGroupResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("castaneai.arena.v1.BackendService.AddRoomGroup is not implemented"))
+	return connect.NewError(connect.CodeUnimplemented, errors.New("castaneai.arena.v1.BackendService.NewContainer is not implemented"))
 }
 
 func (UnimplementedBackendServiceHandler) DeleteRoomGroup(context.Context, *connect.Request[v1.DeleteRoomGroupRequest]) (*connect.Response[v1.DeleteRoomGroupResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("castaneai.arena.v1.BackendService.DeleteRoomGroup is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("castaneai.arena.v1.BackendService.DeleteContainer is not implemented"))
 }
 
 func (UnimplementedBackendServiceHandler) SetRoomResult(context.Context, *connect.Request[v1.SetRoomResultRequest]) (*connect.Response[v1.SetRoomResultResponse], error) {

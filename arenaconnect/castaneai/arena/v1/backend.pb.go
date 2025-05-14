@@ -536,12 +536,12 @@ var file_castaneai_arena_v1_backend_proto_goTypes = []any{
 }
 var file_castaneai_arena_v1_backend_proto_depIdxs = []int32{
 	2, // 0: castaneai.arena.v1.AddRoomGroupResponse.room_allocated:type_name -> castaneai.arena.v1.RoomGroupEventRoomAllocated
-	0, // 1: castaneai.arena.v1.BackendService.AddRoomGroup:input_type -> castaneai.arena.v1.AddRoomGroupRequest
-	3, // 2: castaneai.arena.v1.BackendService.DeleteRoomGroup:input_type -> castaneai.arena.v1.DeleteRoomGroupRequest
+	0, // 1: castaneai.arena.v1.BackendService.NewContainer:input_type -> castaneai.arena.v1.AddRoomGroupRequest
+	3, // 2: castaneai.arena.v1.BackendService.DeleteContainer:input_type -> castaneai.arena.v1.DeleteRoomGroupRequest
 	5, // 3: castaneai.arena.v1.BackendService.SetRoomResult:input_type -> castaneai.arena.v1.SetRoomResultRequest
 	7, // 4: castaneai.arena.v1.BackendService.FreeRoom:input_type -> castaneai.arena.v1.FreeRoomRequest
-	1, // 5: castaneai.arena.v1.BackendService.AddRoomGroup:output_type -> castaneai.arena.v1.AddRoomGroupResponse
-	4, // 6: castaneai.arena.v1.BackendService.DeleteRoomGroup:output_type -> castaneai.arena.v1.DeleteRoomGroupResponse
+	1, // 5: castaneai.arena.v1.BackendService.NewContainer:output_type -> castaneai.arena.v1.AddRoomGroupResponse
+	4, // 6: castaneai.arena.v1.BackendService.DeleteContainer:output_type -> castaneai.arena.v1.DeleteRoomGroupResponse
 	6, // 7: castaneai.arena.v1.BackendService.SetRoomResult:output_type -> castaneai.arena.v1.SetRoomResultResponse
 	8, // 8: castaneai.arena.v1.BackendService.FreeRoom:output_type -> castaneai.arena.v1.FreeRoomResponse
 	5, // [5:9] is the sub-list for method output_type

@@ -54,19 +54,30 @@ func main() {
 		slog.Error(err.Error(), "error", err)
 		os.Exit(1)
 	}
-	allocator, err := arenaotel.NewFrontend(arenaredis.NewFrontend("arenaloadtest:", redisClient))
+	redisPubSubClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{"127.0.0.1:6379"}, DisableCache: true})
+	if err != nil {
+		err := fmt.Errorf("failed to create redis pubsub client: %w", err)
+		slog.Error(err.Error(), "error", err)
+		os.Exit(1)
+	}
+	allocator, err := arenaotel.NewFrontend(arenaredis.NewFrontend("arenaloadtest:", redisClient, redisPubSubClient))
 	if err != nil {
 		err := fmt.Errorf("failed to create Arena Frontend: %w", err)
 		slog.Error(err.Error(), "error", err)
 		os.Exit(1)
 	}
-	backend := arenaredis.NewBackend(ctx, "arenaloadtest:", redisClient)
-	_, err = backend.AddRoomGroup(ctx, arena.AddRoomGroupRequest{FleetName: fleetName, Address: "dummy", Capacity: 2000})
+	backend := arenaredis.NewBackend("arenaloadtest:", redisClient)
+	resp, err := backend.NewContainer(ctx, arena.NewContainerRequest{FleetName: fleetName, Address: "dummy", Capacity: 9999999})
 	if err != nil {
 		err := fmt.Errorf("failed to add room group: %w", err)
 		slog.Error(err.Error(), "error", err)
 		return
 	}
+	go func() {
+		for room := range resp.AllocationChannel {
+			slog.Info(fmt.Sprintf("allocated: %+v", room))
+		}
+	}()
 
 	slog.Info(fmt.Sprintf("arena loadtest is running..."))
 
