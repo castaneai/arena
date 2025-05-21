@@ -41,7 +41,7 @@ func (c *container) stop() {
 }
 
 // start uses Redis Streams to receive events occurring in a specific Room in realtime.
-func (c *container) start(req arena.AddContainerRequest) (<-chan arena.AllocationEvent, error) {
+func (c *container) start() (<-chan arena.AllocationEvent, error) {
 	ch := make(chan arena.AllocationEvent, defaultAllocationChannelBufferSize)
 	go func() {
 		for {
@@ -49,7 +49,7 @@ func (c *container) start(req arena.AddContainerRequest) (<-chan arena.Allocatio
 			case <-c.stopCtx.Done():
 				return
 			default:
-				channel := redisPubSubChannelContainer(c.keyPrefix, req.FleetName, req.Address)
+				channel := redisPubSubChannelContainer(c.keyPrefix, c.fleetName, c.address)
 				cmd := c.client.B().Subscribe().Channel(channel).Build()
 				if err := c.client.Receive(c.stopCtx, cmd, func(msg rueidis.PubSubMessage) {
 					allocationEvent, err := decodeRoomAllocationEvent(msg.Message)

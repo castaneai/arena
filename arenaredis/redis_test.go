@@ -1,9 +1,11 @@
 package arenaredis
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/rueidis"
 	"github.com/stretchr/testify/require"
 
@@ -11,15 +13,14 @@ import (
 )
 
 const (
-	localRedisAddr   = "localhost:6379"
-	testingKeyPrefix = "arenatest:"
-	chanReadTimeout  = 10 * time.Second
+	localRedisAddr  = "localhost:6379"
+	chanReadTimeout = 10 * time.Second
 )
 
 func TestAllocation(t *testing.T) {
 	fleet1Name := "fleet1"
 	ctx := t.Context()
-	frontend, backend := newFrontendBackend(t)
+	frontend, backend, _ := newFrontendBackendMetrics(t)
 
 	// new con1: [(free), (free)] (1/2)
 	con1, err := backend.AddContainer(ctx, arena.AddContainerRequest{Address: "con1", Capacity: 2, FleetName: fleet1Name})
@@ -106,21 +107,28 @@ func TestAllocation(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func newFrontendBackend(t *testing.T) (arena.Frontend, arena.Backend) {
+func newFrontendBackendMetrics(t *testing.T) (arena.Frontend, arena.Backend, *Metrics) {
 	t.Helper()
 	frontendClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{localRedisAddr}, DisableCache: true})
 	if err != nil {
 		t.Fatalf("failed to create frontend redis frontendClient: %+v", err)
 	}
 	checkRedisConnection(t, frontendClient)
-	frontend := NewFrontend(testingKeyPrefix, frontendClient)
+	keyPrefix := fmt.Sprintf("arenaredis_test_%s", uuid.New().String())
+	frontend := NewFrontend(keyPrefix, frontendClient)
 	backendClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{localRedisAddr}, DisableCache: true})
 	if err != nil {
 		t.Fatalf("failed to create pub/sub redis frontendClient: %+v", err)
 	}
 	checkRedisConnection(t, backendClient)
-	backend := NewBackend(testingKeyPrefix, backendClient)
-	return frontend, backend
+	backend := NewBackend(keyPrefix, backendClient)
+	metricsClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{localRedisAddr}, DisableCache: true})
+	if err != nil {
+		t.Fatalf("failed to create frontend redis frontendClient: %+v", err)
+	}
+	checkRedisConnection(t, metricsClient)
+	metrics := NewMetrics(keyPrefix, metricsClient)
+	return frontend, backend, metrics
 }
 
 func checkRedisConnection(t *testing.T, c rueidis.Client) {

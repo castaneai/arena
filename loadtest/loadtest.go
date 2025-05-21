@@ -18,7 +18,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 
 	"github.com/castaneai/arena"
-	"github.com/castaneai/arena/arenaotel"
 	"github.com/castaneai/arena/arenaredis"
 )
 
@@ -59,12 +58,7 @@ func main() {
 		slog.Error(err.Error(), "error", err)
 		os.Exit(1)
 	}
-	frontend, err := arenaotel.NewFrontend(arenaredis.NewFrontend(redisKeyPrefix, redisClient))
-	if err != nil {
-		err := fmt.Errorf("failed to create Arena Frontend: %w", err)
-		slog.Error(err.Error(), "error", err)
-		os.Exit(1)
-	}
+	frontend := arenaredis.NewFrontend(redisKeyPrefix, redisClient)
 	backend := arenaredis.NewBackend(redisKeyPrefix, redisClient)
 	resp, err := backend.AddContainer(ctx, arena.AddContainerRequest{FleetName: fleetName, Address: "dummy", Capacity: 9999999})
 	if err != nil {
