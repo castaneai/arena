@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/redis/rueidis"
+	"github.com/redis/rueidis/rueidisotel"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -22,8 +23,11 @@ import (
 )
 
 const (
-	serviceName = "arena_loadtest"
-	fleetName   = "fleet"
+	serviceName       = "arena_loadtest"
+	fleetName         = "fleet"
+	redisKeyPrefix    = "arenaloadtest:"
+	localRedisAddr    = "localhost:6379"
+	localOtelEndpoint = "http://localhost:4317"
 )
 
 func main() {
@@ -36,7 +40,7 @@ func main() {
 		slog.Error(err.Error(), "error", err)
 		os.Exit(1)
 	}
-	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpointURL("http://localhost:4317"))
+	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpointURL(localOtelEndpoint))
 	if err != nil {
 		err := fmt.Errorf("failed to create OTLP metric exporter: %w", err)
 		slog.Error(err.Error(), "error", err)
@@ -48,26 +52,21 @@ func main() {
 		metric.WithResource(otelRes),
 	))
 
-	redisClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{"127.0.0.1:6379"}, DisableCache: true})
+	redisClient, err := rueidisotel.NewClient(rueidis.ClientOption{InitAddress: []string{localRedisAddr}, DisableCache: true},
+		rueidisotel.WithOperationMetricAttr())
 	if err != nil {
 		err := fmt.Errorf("failed to create redis client: %w", err)
 		slog.Error(err.Error(), "error", err)
 		os.Exit(1)
 	}
-	redisPubSubClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{"127.0.0.1:6379"}, DisableCache: true})
-	if err != nil {
-		err := fmt.Errorf("failed to create redis pubsub client: %w", err)
-		slog.Error(err.Error(), "error", err)
-		os.Exit(1)
-	}
-	allocator, err := arenaotel.NewFrontend(arenaredis.NewFrontend("arenaloadtest:", redisClient, redisPubSubClient))
+	frontend, err := arenaotel.NewFrontend(arenaredis.NewFrontend(redisKeyPrefix, redisClient))
 	if err != nil {
 		err := fmt.Errorf("failed to create Arena Frontend: %w", err)
 		slog.Error(err.Error(), "error", err)
 		os.Exit(1)
 	}
-	backend := arenaredis.NewBackend("arenaloadtest:", redisClient)
-	resp, err := backend.NewContainer(ctx, arena.NewContainerRequest{FleetName: fleetName, Address: "dummy", Capacity: 9999999})
+	backend := arenaredis.NewBackend(redisKeyPrefix, redisClient)
+	resp, err := backend.AddContainer(ctx, arena.AddContainerRequest{FleetName: fleetName, Address: "dummy", Capacity: 9999999})
 	if err != nil {
 		err := fmt.Errorf("failed to add room group: %w", err)
 		slog.Error(err.Error(), "error", err)
@@ -91,7 +90,7 @@ func main() {
 			return
 		case <-ticker.C:
 			i++
-			if _, err := allocator.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: fmt.Sprintf("room%d", i), FleetName: fleetName}); err != nil {
+			if _, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: fmt.Sprintf("room%d", i), FleetName: fleetName}); err != nil {
 				err := fmt.Errorf("failed to allocate room: %w", err)
 				slog.Error(err.Error(), "error", err)
 				time.Sleep(100 * time.Millisecond)

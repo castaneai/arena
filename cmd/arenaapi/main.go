@@ -12,7 +12,6 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/validate"
-	"github.com/alicebob/miniredis/v2"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/redis/rueidis"
 	"golang.org/x/net/http2"
@@ -43,7 +42,7 @@ func main() {
 		log.Fatalf("failed to create redis client: %v", err)
 	}
 	frontend := arenaredis.NewFrontend(conf.RedisKeyPrefix, redis)
-	backend := arenaredis.NewBackend(ctx, conf.RedisKeyPrefix, redis)
+	backend := arenaredis.NewBackend(conf.RedisKeyPrefix, redis)
 
 	// init connect-RPC server
 	mux := http.NewServeMux()
@@ -73,13 +72,6 @@ func newRedisClient(conf *config) (rueidis.Client, error) {
 	redisConf := rueidis.ClientOption{
 		InitAddress:  []string{conf.RedisAddr},
 		DisableCache: true,
-	}
-	if conf.RedisAddr == "" {
-		mr, err := miniredis.Run()
-		if err != nil {
-			return nil, fmt.Errorf("failed to run miniredis: %w", err)
-		}
-		redisConf.InitAddress = []string{mr.Addr()}
 	}
 	return rueidis.NewClient(redisConf)
 }

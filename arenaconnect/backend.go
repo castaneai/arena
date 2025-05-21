@@ -20,7 +20,7 @@ func NewBackendService(backend arena.Backend) arenav1connect.BackendServiceHandl
 }
 
 func (s *backendService) AddRoomGroup(ctx context.Context, req *connect.Request[arenav1.AddRoomGroupRequest], stream *connect.ServerStream[arenav1.AddRoomGroupResponse]) error {
-	resp, err := s.backend.NewContainer(ctx, arena.NewContainerRequest{
+	resp, err := s.backend.AddContainer(ctx, arena.AddContainerRequest{
 		Address:   req.Msg.Address,
 		FleetName: req.Msg.FleetName,
 		Capacity:  int(req.Msg.Capacity),
@@ -79,7 +79,7 @@ func (s *backendService) SetRoomResult(ctx context.Context, req *connect.Request
 }
 
 func (s *backendService) FreeRoom(ctx context.Context, req *connect.Request[arenav1.FreeRoomRequest]) (*connect.Response[arenav1.FreeRoomResponse], error) {
-	if err := s.backend.FreeRoom(ctx, arena.FreeRoomRequest{
+	if err := s.backend.ReleaseRoom(ctx, arena.ReleaseRoomRequest{
 		Address:   req.Msg.Address,
 		FleetName: req.Msg.FleetName,
 	}); err != nil {

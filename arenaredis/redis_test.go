@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/rueidis"
 	"github.com/stretchr/testify/require"
 
@@ -12,6 +11,7 @@ import (
 )
 
 const (
+	localRedisAddr   = "localhost:6379"
 	testingKeyPrefix = "arenatest:"
 	chanReadTimeout  = 10 * time.Second
 )
@@ -19,12 +19,10 @@ const (
 func TestAllocation(t *testing.T) {
 	fleet1Name := "fleet1"
 	ctx := t.Context()
-	client, pubSubClient, redis := newRedisClientWithMiniRedis(t)
-	backend := NewBackend(testingKeyPrefix, client)
-	frontend := NewFrontend(testingKeyPrefix, client, pubSubClient)
+	frontend, backend := newFrontendBackend(t)
 
 	// new con1: [(free), (free)] (1/2)
-	con1, err := backend.NewContainer(ctx, arena.NewContainerRequest{Address: "con1", Capacity: 2, FleetName: fleet1Name})
+	con1, err := backend.AddContainer(ctx, arena.AddContainerRequest{Address: "con1", Capacity: 2, FleetName: fleet1Name})
 	require.NoError(t, err)
 
 	// con1: [room1, (free)] (1/2)
@@ -44,7 +42,7 @@ func TestAllocation(t *testing.T) {
 
 	// con1: [room1, room2] (2/2)
 	// new con2: [(free), (free)] (0/2)
-	con2, err := backend.NewContainer(ctx, arena.NewContainerRequest{Address: "con2", Capacity: 2, FleetName: fleet1Name})
+	con2, err := backend.AddContainer(ctx, arena.AddContainerRequest{Address: "con2", Capacity: 2, FleetName: fleet1Name})
 	require.NoError(t, err)
 
 	// con1: [room1, room2] (2/2)
@@ -72,7 +70,7 @@ func TestAllocation(t *testing.T) {
 	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusNotFound))
 
 	// SetRoomResult creates a RoomResult.
-	room1resTTL := 10 * time.Second
+	room1resTTL := 2 * time.Second
 	err = backend.SetRoomResult(ctx, arena.SetRoomResultRequest{RoomID: "room1", RoomResultData: []byte("room1_ok"), ResultDataTTL: room1resTTL})
 	require.NoError(t, err)
 
@@ -86,14 +84,14 @@ func TestAllocation(t *testing.T) {
 	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusNotFound))
 
 	// RoomResult is deleted when TTL is exceeded.
-	redis.FastForward(room1resTTL + time.Second)
+	time.Sleep(room1resTTL + 100*time.Millisecond)
 	_, err = frontend.GetRoomResult(ctx, arena.GetRoomResultRequest{RoomID: "room1"})
 	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusNotFound))
 
-	// FreeRoom will again free up a slot, which can be allocated
+	// ReleaseRoom will again free up a slot, which can be allocated
 	// con1: [room1, (free)] (1/2)
 	// con2: [room3, room4] (2/2)
-	err = backend.FreeRoom(ctx, arena.FreeRoomRequest{Address: "con1", FleetName: fleet1Name})
+	err = backend.ReleaseRoom(ctx, arena.ReleaseRoomRequest{Address: "con1", FleetName: fleet1Name, ReleaseCapacity: 1})
 	require.NoError(t, err)
 
 	room5, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room5", FleetName: fleet1Name})
@@ -108,19 +106,28 @@ func TestAllocation(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func newRedisClientWithMiniRedis(t *testing.T) (rueidis.Client, rueidis.Client, *miniredis.Miniredis) {
+func newFrontendBackend(t *testing.T) (arena.Frontend, arena.Backend) {
 	t.Helper()
-	r := miniredis.RunT(t)
-	t.Cleanup(func() { r.Close() })
-	client, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{r.Addr()}, DisableCache: true})
+	frontendClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{localRedisAddr}, DisableCache: true})
 	if err != nil {
-		t.Fatalf("failed to create frontend redis client: %+v", err)
+		t.Fatalf("failed to create frontend redis frontendClient: %+v", err)
 	}
-	pubSubClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{r.Addr()}, DisableCache: true})
+	checkRedisConnection(t, frontendClient)
+	frontend := NewFrontend(testingKeyPrefix, frontendClient)
+	backendClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{localRedisAddr}, DisableCache: true})
 	if err != nil {
-		t.Fatalf("failed to create pub/sub redis client: %+v", err)
+		t.Fatalf("failed to create pub/sub redis frontendClient: %+v", err)
 	}
-	return client, pubSubClient, r
+	checkRedisConnection(t, backendClient)
+	backend := NewBackend(testingKeyPrefix, backendClient)
+	return frontend, backend
+}
+
+func checkRedisConnection(t *testing.T, c rueidis.Client) {
+	t.Helper()
+	if err := c.Do(t.Context(), c.B().Ping().Build()).Error(); err != nil {
+		t.Fatalf("failed to connect to redis: %v", err)
+	}
 }
 
 func mustReadChan[T any](t *testing.T, ch <-chan T) T {

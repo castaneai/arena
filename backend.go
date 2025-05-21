@@ -6,23 +6,30 @@ import (
 )
 
 type Backend interface {
-	NewContainer(ctx context.Context, req NewContainerRequest) (*NewContainerResponse, error)
+	// AddContainer adds a container to arena.
+	AddContainer(ctx context.Context, req AddContainerRequest) (*AddContainerResponse, error)
+
+	// DeleteContainer removes a container from arena.
 	DeleteContainer(ctx context.Context, req DeleteContainerRequest) error
+
+	// SetRoomResult sets the result data of a session in a Room.
 	SetRoomResult(ctx context.Context, req SetRoomResultRequest) error
-	FreeRoom(ctx context.Context, req FreeRoomRequest) error
+
+	// ReleaseRoom releases a room and makes it available for allocation.
+	ReleaseRoom(ctx context.Context, req ReleaseRoomRequest) error
 }
 
-type NewContainerRequest struct {
+type AddContainerRequest struct {
 	Address   string
 	FleetName string
 	Capacity  int
 }
 
-type NewContainerResponse struct {
-	AllocationChannel <-chan AllocatedRoom
+type AddContainerResponse struct {
+	AllocationChannel <-chan AllocationEvent
 }
 
-type AllocatedRoom struct {
+type AllocationEvent struct {
 	RoomID          string
 	RoomInitialData []byte
 }
@@ -32,9 +39,10 @@ type DeleteContainerRequest struct {
 	FleetName string
 }
 
-type FreeRoomRequest struct {
-	Address   string
-	FleetName string
+type ReleaseRoomRequest struct {
+	Address         string
+	FleetName       string
+	ReleaseCapacity uint
 }
 
 type SetRoomResultRequest struct {
