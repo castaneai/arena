@@ -5,13 +5,16 @@ Arena manages room allocations for multiplayer games.
 A **Room** is the place where a single game session starts.
 The process of starting a multiplayer game (e.g. Matchmaker) calls `Frontend.AllocateRoom` and returns the address to the player.
 
-A **RoomGroup** is a place to store multiple rooms, usually an OS process or a Kubernetes Pod.
-RoomGroups provide their own address and capacity at startup with `Backend.AddRoomGroup`.
-and also detect new room allocations via `AddRoomGroupResponse.EventChannel`.
+A **Container** is a place to store multiple rooms, usually an OS process or a Kubernetes Pod.
+Containers provide their own address and capacity at startup with `Backend.AddContainer`.
+and also detect new room allocations via `AddContainerResponse.EventChannel`.
 
-Each time a room is allocated, the capacity of the RoomGroup is decremented by 1.
-When it reaches 0, the RoomGroup is full and cannot be allocated there.
-However, when a room is freed by `Backend.FreeRoom`, the capacity is increased and the room can be allocated again.
+A **Fleet** is a group of Containers, and `Frontend.AllocateRoom` allows you to specify to which Fleet a Room is assigned.
+You may have multiple Fleets depending on the environment and game type.
+
+Each time a room is allocated, the capacity of the Container is decremented by 1.
+When it reaches 0, the Container is full and cannot be allocated there.
+However, when a room is freed by `Backend.ReleaseRoom`, the capacity is increased and the room can be allocated again.
 
 Note that capacity here is the number of rooms, not the number of players.
 
@@ -20,28 +23,28 @@ sequenceDiagram
     participant Player
     participant Matchmaker
     participant Arena
-    participant GameServer as RoomGroup(GameServer)
+    participant Container
 
-    GameServer ->> Arena: Backend.AddRoomGroup
-    loop GameServer is alive
+    Container ->> Arena: Backend.AddContainer
+    loop Container is alive
         Player ->> Matchmaker: Request Matchmaking
         Matchmaker ->> Arena: Frontend.AllocateRoom()
         activate Arena
-        Arena ->> GameServer: Notify Allocation
-        Arena ->> Matchmaker: RoomGroup Address
+        Arena ->> Container: Allocation event
+        Note over Container: capacity -= 1
+        Arena ->> Matchmaker: Container address
         deactivate Arena
-        Matchmaker ->> Player: RoomGroup Address
-        Note over GameServer: RoomGroup capacity -1
+        Matchmaker ->> Player: Container Address
 
-        Player ->> GameServer: Join Room
-        Note over GameServer: Game session occurs...
-        Player ->> GameServer: Leave Room
-        GameServer ->> Arena: Backend.SetRoomResult()
-        GameServer ->> Arena: Backend.FreeRoom()
-        Note over GameServer: RoomGroup capacity +1
+        Player ->> Container: Join
+        Note over Container: Game session occurs...
+        Player ->> Container: Leave
+        Container ->> Arena: Backend.SetRoomResult()
+        Container ->> Arena: Backend.ReleaseRoom()
+        Note over Container: capacity += 1
     end
-    Note over GameServer: Shutdown GameServer
-    GameServer ->> Arena: Backend.DeleteRoomGroup
+    Note over Container: Shutdown container
+    Container ->> Arena: Backend.DeleteContainer
 ```
 
 ## Usage

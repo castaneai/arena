@@ -5,48 +5,44 @@ import (
 	"time"
 )
 
-const (
-	EventNameRoomAllocated = "RoomAllocated"
-)
-
 type Backend interface {
-	AddRoomGroup(ctx context.Context, req AddRoomGroupRequest) (*AddRoomGroupResponse, error)
-	DeleteRoomGroup(ctx context.Context, req DeleteRoomGroupRequest) error
+	// AddContainer adds a container to arena.
+	AddContainer(ctx context.Context, req AddContainerRequest) (*AddContainerResponse, error)
+
+	// DeleteContainer removes a container from arena.
+	DeleteContainer(ctx context.Context, req DeleteContainerRequest) error
+
+	// SetRoomResult sets the result data of a session in a Room.
 	SetRoomResult(ctx context.Context, req SetRoomResultRequest) error
-	FreeRoom(ctx context.Context, req FreeRoomRequest) error
+
+	// ReleaseRoom releases a room and makes it available for allocation.
+	ReleaseRoom(ctx context.Context, req ReleaseRoomRequest) error
 }
 
-type AddRoomGroupRequest struct {
+type AddContainerRequest struct {
 	Address   string
 	FleetName string
 	Capacity  int
 }
 
-type AddRoomGroupResponse struct {
-	EventChannel <-chan RoomGroupEvent
+type AddContainerResponse struct {
+	AllocationChannel <-chan AllocationEvent
 }
 
-type RoomGroupEvent interface {
-	RoomGroupEventName() string
-}
-
-type RoomGroupEventRoomAllocated struct {
+type AllocationEvent struct {
 	RoomID          string
 	RoomInitialData []byte
 }
 
-func (e *RoomGroupEventRoomAllocated) RoomGroupEventName() string {
-	return EventNameRoomAllocated
-}
-
-type DeleteRoomGroupRequest struct {
+type DeleteContainerRequest struct {
 	Address   string
 	FleetName string
 }
 
-type FreeRoomRequest struct {
-	Address   string
-	FleetName string
+type ReleaseRoomRequest struct {
+	Address         string
+	FleetName       string
+	ReleaseCapacity uint
 }
 
 type SetRoomResultRequest struct {

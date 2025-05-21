@@ -2,27 +2,41 @@ package arenaredis
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"log/slog"
+	"sync"
 
 	"github.com/redis/rueidis"
 
 	"github.com/castaneai/arena"
 )
 
-type backend struct {
-	shutdownCtx context.Context
-	keyPrefix   string
-	client      rueidis.Client
+var (
+	deleteContainerScript = rueidis.NewLuaScript(`
+local fleet_capacities_key = KEYS[1]
+local available_containers_key = KEYS[2]
+local fleet_name = ARGV[1]
+local container_address = ARGV[2]
+local capacity = redis.call('ZSCORE', available_containers_key, container_address)
+if capacity ~= nil then
+	redis.call('ZINCRBY', fleet_capacities_key, -capacity, fleet_name)
+end
+return redis.call('ZREM', available_containers_key, container_address)
+`)
+)
+
+type redisBackend struct {
+	keyPrefix string
+	client    rueidis.Client
+	fleets    map[string]*fleet
+	mu        sync.RWMutex
 }
 
-func NewBackend(shutdownCtx context.Context, keyPrefix string, client rueidis.Client) arena.Backend {
-	return &backend{shutdownCtx: shutdownCtx, keyPrefix: keyPrefix, client: client}
+func NewBackend(keyPrefix string, client rueidis.Client) arena.Backend {
+	return &redisBackend{keyPrefix: keyPrefix, client: client, fleets: make(map[string]*fleet), mu: sync.RWMutex{}}
 }
 
-func (b *backend) AddRoomGroup(ctx context.Context, req arena.AddRoomGroupRequest) (*arena.AddRoomGroupResponse, error) {
+func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerRequest) (*arena.AddContainerResponse, error) {
 	if req.Address == "" {
 		return nil, arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing address"))
 	}
@@ -33,105 +47,58 @@ func (b *backend) AddRoomGroup(ctx context.Context, req arena.AddRoomGroupReques
 		return nil, arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("invalid capacity"))
 	}
 
-	eventCh := b.listenRoomGroupEvents(req)
-	key := redisKeyAvailableRoomGroups(b.keyPrefix, req.FleetName)
-	cmd := b.client.B().Zadd().Key(key).ScoreMember().ScoreMember(float64(req.Capacity), req.Address).Build()
-	if err := b.client.Do(ctx, cmd).Error(); err != nil {
-		return nil, arena.NewError(arena.ErrorStatusUnknown, err)
+	cmds := []rueidis.Completed{
+		// add the fleet capacity to the fleet capacities index
+		b.client.B().Zincrby().Key(redisKeyFleetCapacities(b.keyPrefix)).Increment(float64(req.Capacity)).Member(req.FleetName).Build(),
+		// add the container to the available containers index
+		b.client.B().Zincrby().Key(redisKeyAvailableContainersIndex(b.keyPrefix, req.FleetName)).Increment(float64(req.Capacity)).Member(req.Address).Build(),
 	}
-	return &arena.AddRoomGroupResponse{
-		EventChannel: eventCh,
+	for _, res := range b.client.DoMulti(ctx, cmds...) {
+		if err := res.Error(); err != nil {
+			return nil, arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to add container to available containers index: %w", err))
+		}
+	}
+
+	c := newContainer(b.client, b.keyPrefix, req)
+	flt := b.getOrCreateFleet(req.FleetName)
+	flt.AddContainer(c)
+	ch, err := c.start()
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen allocation: %w", err)
+	}
+
+	return &arena.AddContainerResponse{
+		AllocationChannel: ch,
 	}, nil
 }
 
-// listenRoomGroupEvents uses Redis Streams to receive events occurring in a specific Room in realtime.
-func (b *backend) listenRoomGroupEvents(req arena.AddRoomGroupRequest) <-chan arena.RoomGroupEvent {
-	ch := make(chan arena.RoomGroupEvent, 1024) // TODO: buffer size option
-	stream := redisKeyRoomGroupEventStream(b.keyPrefix, req.FleetName, req.Address)
-	go func() {
-		lastID := "0"
-		for {
-			// https://redis.io/docs/latest/develop/data-types/streams/#listening-for-new-items-with-xread
-			cmd := b.client.B().Xread().Block(0).Streams().Key(stream).Id(lastID).Build()
-			reply, err := b.client.Do(b.shutdownCtx, cmd).AsXRead()
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return
-				}
-				if !rueidis.IsRedisNil(err) {
-					err = fmt.Errorf("failed to parse XREAD reply as Map: %w", err)
-					slog.Error(err.Error(), "error", err)
-				}
-				continue
-			}
-			for _, entry := range reply[stream] {
-				lastID = entry.ID
-				eventName, ok := entry.FieldValues[redisStreamFieldNameEventName]
-				if !ok {
-					continue
-				}
-				switch eventName {
-				case arena.EventNameRoomAllocated:
-					ev, err := decodeRoomAllocatedEvent(entry)
-					if err != nil {
-						err = fmt.Errorf("failed to decode room allocated event: %w", err)
-						slog.Error(err.Error(), "error", err)
-						continue
-					}
-					ch <- ev
-				}
-			}
-		}
-	}()
-	return ch
-}
-
-func decodeRoomAllocatedEvent(entry rueidis.XRangeEntry) (*arena.RoomGroupEventRoomAllocated, error) {
-	roomID, ok := entry.FieldValues[redisStreamFieldNameRoomID]
-	if !ok {
-		return nil, fmt.Errorf("room allocated but RoomID is missing: %+v", entry)
-	}
-	ev := &arena.RoomGroupEventRoomAllocated{
-		RoomID: roomID,
-	}
-	if roomInitialDataStr, ok := entry.FieldValues[redisStreamFieldNameRoomInitialData]; ok {
-		roomInitialData, err := base64.StdEncoding.DecodeString(roomInitialDataStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode room initial data from base64('%s'): %w", roomInitialDataStr, err)
-		}
-		ev.RoomInitialData = roomInitialData
-	}
-	return ev, nil
-}
-
-func (b *backend) DeleteRoomGroup(ctx context.Context, req arena.DeleteRoomGroupRequest) error {
+func (b *redisBackend) DeleteContainer(ctx context.Context, req arena.DeleteContainerRequest) error {
 	if req.Address == "" {
 		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing address"))
 	}
 	if req.FleetName == "" {
 		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing fleet name"))
 	}
-	key := redisKeyAvailableRoomGroups(b.keyPrefix, req.FleetName)
-	cmd := b.client.B().Zrem().Key(key).Member(req.Address).Build()
-	if err := b.client.Do(ctx, cmd).Error(); err != nil {
-		return err
+
+	// remove the container from the available containers index
+	res := deleteContainerScript.Exec(ctx, b.client, []string{
+		redisKeyFleetCapacities(b.keyPrefix),
+		redisKeyAvailableContainersIndex(b.keyPrefix, req.FleetName),
+	}, []string{
+		req.FleetName,
+		req.Address,
+	})
+	if err := res.Error(); err != nil {
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to exec delete container script: %w", err))
 	}
-	if err := b.deleteRoomGroupEventStream(ctx, req); err != nil {
-		return fmt.Errorf("failed to delete room group event stream: %w", err)
-	}
+
+	flt := b.getOrCreateFleet(req.FleetName)
+	flt.DeleteContainer(req.Address)
+
 	return nil
 }
 
-func (b *backend) deleteRoomGroupEventStream(ctx context.Context, req arena.DeleteRoomGroupRequest) error {
-	stream := redisKeyRoomGroupEventStream(b.keyPrefix, req.FleetName, req.Address)
-	cmd := b.client.B().Del().Key(stream).Build()
-	if err := b.client.Do(ctx, cmd).Error(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (b *backend) SetRoomResult(ctx context.Context, req arena.SetRoomResultRequest) error {
+func (b *redisBackend) SetRoomResult(ctx context.Context, req arena.SetRoomResultRequest) error {
 	if req.RoomID == "" {
 		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing room id"))
 	}
@@ -149,18 +116,67 @@ func (b *backend) SetRoomResult(ctx context.Context, req arena.SetRoomResultRequ
 	return nil
 }
 
-func (b *backend) FreeRoom(ctx context.Context, req arena.FreeRoomRequest) error {
+func (b *redisBackend) ReleaseRoom(ctx context.Context, req arena.ReleaseRoomRequest) error {
 	if req.Address == "" {
 		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing address"))
 	}
 	if req.FleetName == "" {
 		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing fleet name"))
 	}
+	if req.ReleaseCapacity == 0 {
+		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("release capacity must be greater than 0"))
+	}
 
-	key := redisKeyAvailableRoomGroups(b.keyPrefix, req.FleetName)
-	cmd := b.client.B().Zadd().Key(key).Xx().Incr().ScoreMember().ScoreMember(1, req.Address).Build()
-	if err := b.client.Do(ctx, cmd).Error(); err != nil {
-		return fmt.Errorf("failed to ZADD with INCR: %w", err)
+	// increment the capacity of the container in the available containers index
+	cmds := []rueidis.Completed{
+		b.client.B().Zincrby().Key(redisKeyFleetCapacities(b.keyPrefix)).Increment(float64(req.ReleaseCapacity)).Member(req.FleetName).Build(),
+		b.client.B().Zincrby().Key(redisKeyAvailableContainersIndex(b.keyPrefix, req.FleetName)).Increment(float64(req.ReleaseCapacity)).Member(req.Address).Build(),
+	}
+	for _, res := range b.client.DoMulti(ctx, cmds...) {
+		if err := res.Error(); err != nil {
+			return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to release room: %w", err))
+		}
 	}
 	return nil
+}
+
+func (b *redisBackend) getOrCreateFleet(name string) *fleet {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	f, ok := b.fleets[name]
+	if !ok {
+		f = newFleet(name)
+		b.fleets[name] = f
+	}
+	return f
+}
+
+type fleet struct {
+	name       string
+	containers map[string]*container
+	mu         sync.RWMutex
+}
+
+func newFleet(name string) *fleet {
+	return &fleet{
+		name:       name,
+		containers: make(map[string]*container),
+		mu:         sync.RWMutex{},
+	}
+}
+
+func (f *fleet) AddContainer(c *container) {
+	f.mu.Lock()
+	f.containers[c.address] = c
+	f.mu.Unlock()
+}
+
+func (f *fleet) DeleteContainer(addr string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if c, ok := f.containers[addr]; ok {
+		// stop listening for allocation events for the container
+		c.stop()
+		delete(f.containers, addr)
+	}
 }
