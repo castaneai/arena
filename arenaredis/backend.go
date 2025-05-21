@@ -11,7 +11,7 @@ import (
 	"github.com/castaneai/arena"
 )
 
-type backend struct {
+type redisBackend struct {
 	keyPrefix  string
 	client     rueidis.Client
 	containers map[string]*container
@@ -19,10 +19,10 @@ type backend struct {
 }
 
 func NewBackend(keyPrefix string, client rueidis.Client) arena.Backend {
-	return &backend{keyPrefix: keyPrefix, client: client, containers: make(map[string]*container), mu: sync.RWMutex{}}
+	return &redisBackend{keyPrefix: keyPrefix, client: client, containers: make(map[string]*container), mu: sync.RWMutex{}}
 }
 
-func (b *backend) AddContainer(ctx context.Context, req arena.AddContainerRequest) (*arena.AddContainerResponse, error) {
+func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerRequest) (*arena.AddContainerResponse, error) {
 	if req.Address == "" {
 		return nil, arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing address"))
 	}
@@ -53,7 +53,7 @@ func (b *backend) AddContainer(ctx context.Context, req arena.AddContainerReques
 	}, nil
 }
 
-func (b *backend) DeleteContainer(ctx context.Context, req arena.DeleteContainerRequest) error {
+func (b *redisBackend) DeleteContainer(ctx context.Context, req arena.DeleteContainerRequest) error {
 	if req.Address == "" {
 		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing address"))
 	}
@@ -79,7 +79,7 @@ func (b *backend) DeleteContainer(ctx context.Context, req arena.DeleteContainer
 	return nil
 }
 
-func (b *backend) SetRoomResult(ctx context.Context, req arena.SetRoomResultRequest) error {
+func (b *redisBackend) SetRoomResult(ctx context.Context, req arena.SetRoomResultRequest) error {
 	if req.RoomID == "" {
 		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing room id"))
 	}
@@ -97,7 +97,7 @@ func (b *backend) SetRoomResult(ctx context.Context, req arena.SetRoomResultRequ
 	return nil
 }
 
-func (b *backend) ReleaseRoom(ctx context.Context, req arena.ReleaseRoomRequest) error {
+func (b *redisBackend) ReleaseRoom(ctx context.Context, req arena.ReleaseRoomRequest) error {
 	if req.Address == "" {
 		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing address"))
 	}
