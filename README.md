@@ -3,10 +3,10 @@
 Arena manages room allocations for multiplayer games.
 
 A **Room** is the place where a single game session starts.
-The process of starting a multiplayer game (e.g. Matchmaker) calls `Frontend.AllocateRoom` and returns the address to the player.
+The process of starting a multiplayer game (e.g. Matchmaker) calls `Frontend.AllocateRoom` and returns the container ID to the player.
 
 A **Container** is a place to store multiple rooms, usually an OS process or a Kubernetes Pod.
-Containers provide their own address and capacity at startup with `Backend.AddContainer`.
+Containers provide their own ID and capacity at startup with `Backend.AddContainer`.
 and also detect new room allocations via `AddContainerResponse.EventChannel`.
 
 A **Fleet** is a group of Containers, and `Frontend.AllocateRoom` allows you to specify to which Fleet a Room is assigned.
@@ -32,9 +32,9 @@ sequenceDiagram
         activate Arena
         Arena ->> Container: Allocation event
         Note over Container: capacity -= 1
-        Arena ->> Matchmaker: Container address
+        Arena ->> Matchmaker: Container ID
         deactivate Arena
-        Matchmaker ->> Player: Container Address
+        Matchmaker ->> Player: Container ID
 
         Player ->> Container: Join
         Note over Container: Game session occurs...
@@ -46,16 +46,6 @@ sequenceDiagram
     Note over Container: Shutdown container
     Container ->> Arena: Backend.DeleteContainer
 ```
-
-## Usage
-
-Arena uses Redis as its backend, with [rueidis](https://github.com/redis/rueidis).
-You can create the respective interfaces with `arenaredis.NewFrontend` and `arenaredis.NewBackend`.
-
-## Extensibility
-
-Arena is currently built on top of Go and Redis,
-but could be implemented in other languages or other pub/sub solutions, as Arena is essentially a room management interface.
 
 ## License
 

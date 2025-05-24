@@ -60,9 +60,9 @@ func main() {
 	}
 	frontend := arenaredis.NewFrontend(redisKeyPrefix, redisClient)
 	backend := arenaredis.NewBackend(redisKeyPrefix, redisClient)
-	resp, err := backend.AddContainer(ctx, arena.AddContainerRequest{FleetName: fleetName, Address: "dummy", Capacity: 9999999})
+	resp, err := backend.AddContainer(ctx, arena.AddContainerRequest{FleetName: fleetName, ContainerID: "dummy", InitialCapacity: 9999999})
 	if err != nil {
-		err := fmt.Errorf("failed to add room group: %w", err)
+		err := fmt.Errorf("failed to add container: %w", err)
 		slog.Error(err.Error(), "error", err)
 		return
 	}

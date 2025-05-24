@@ -20,9 +20,9 @@ type Backend interface {
 }
 
 type AddContainerRequest struct {
-	Address   string
-	FleetName string
-	Capacity  int
+	ContainerID     string
+	FleetName       string
+	InitialCapacity int
 }
 
 type AddContainerResponse struct {
@@ -35,14 +35,14 @@ type AllocationEvent struct {
 }
 
 type DeleteContainerRequest struct {
-	Address   string
-	FleetName string
+	ContainerID string
+	FleetName   string
 }
 
 type ReleaseRoomRequest struct {
-	Address         string
-	FleetName       string
-	ReleaseCapacity uint
+	ContainerID string
+	FleetName   string
+	RoomID      string
 }
 
 type SetRoomResultRequest struct {

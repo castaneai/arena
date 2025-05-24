@@ -5,7 +5,7 @@ import (
 )
 
 type Frontend interface {
-	// AllocateRoom searches for an available RoomGroup and allocates a Room.
+	// AllocateRoom searches for an available containers and allocates a Room.
 	// If there is no vacancy, it returns Error with code: ErrorStatusResourceExhausted.
 	AllocateRoom(ctx context.Context, req AllocateRoomRequest) (*AllocateRoomResponse, error)
 
@@ -21,8 +21,8 @@ type AllocateRoomRequest struct {
 }
 
 type AllocateRoomResponse struct {
-	RoomID  string
-	Address string
+	RoomID      string
+	ContainerID string
 }
 
 type GetRoomResultRequest struct {

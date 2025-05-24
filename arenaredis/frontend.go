@@ -12,22 +12,34 @@ import (
 
 var (
 	allocateRoomScript = rueidis.NewLuaScript(`
-local fleet_capacities_key = KEYS[1]
-local available_containers_key = KEYS[2]
-local items = redis.call('ZRANGE', available_containers_key, '(0', '+inf', 'BYSCORE', 'LIMIT', 0, 1)
+local room_container_key = KEYS[1]
+local container_id = redis.call('GET', room_container_key)
+if container_id then
+	return container_id
+end
 
-if #items == 0 then
+local fleet_capacities_key = KEYS[2]
+local available_containers_key = KEYS[3]
+-- Find one container that has a vacancy in capacity.
+local found = redis.call('ZRANGE', available_containers_key, '(0', '+inf', 'BYSCORE', 'LIMIT', 0, 1)
+if #found == 0 then
     return nil
 end
 
-local fleet_name = ARGV[1]
-local container_address = items[1]
-local channel = ARGV[2] .. container_address
+container_id = found[1]
+local room_id = ARGV[1]
+local fleet_name = ARGV[2]
 redis.call('ZINCRBY', fleet_capacities_key, -1, fleet_name)
-redis.call('ZINCRBY', available_containers_key, -1, container_address)
+redis.call('ZINCRBY', available_containers_key, -1, container_id)
+redis.call('SET', room_container_key, container_id)
+
+local container_to_rooms_key = KEYS[4] .. container_id
+redis.call('SADD', container_to_rooms_key, room_id)
+
+local container_channel = KEYS[5] .. container_id
 local allocation_event = ARGV[3]
-redis.call('PUBLISH', channel, allocation_event)
-return container_address
+redis.call('PUBLISH', container_channel, allocation_event)
+return container_id
 `)
 )
 
@@ -71,11 +83,11 @@ func (a *redisFrontend) AllocateRoom(ctx context.Context, req arena.AllocateRoom
 		return nil, arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing fleet name"))
 	}
 
-	containerAddress, err := a.allocateRoom(ctx, req)
+	containerID, err := a.allocateRoom(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return &arena.AllocateRoomResponse{RoomID: req.RoomID, Address: containerAddress}, nil
+	return &arena.AllocateRoomResponse{RoomID: req.RoomID, ContainerID: containerID}, nil
 }
 
 func (a *redisFrontend) GetRoomResult(ctx context.Context, req arena.GetRoomResultRequest) (*arena.GetRoomResultResponse, error) {
@@ -102,24 +114,26 @@ func (a *redisFrontend) GetRoomResult(ctx context.Context, req arena.GetRoomResu
 }
 
 func (a *redisFrontend) allocateRoom(ctx context.Context, req arena.AllocateRoomRequest) (string, error) {
-	channelPrefix := redisPubSubChannelContainerPrefix(a.keyPrefix, req.FleetName)
 	allocationEvent, err := encodeRoomAllocationEvent(arena.AllocationEvent{RoomID: req.RoomID, RoomInitialData: req.RoomInitialData})
 	if err != nil {
 		return "", arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to encode allocation event: %w", err))
 	}
 	res := allocateRoomScript.Exec(ctx, a.client, []string{
+		redisKeyRoomToContainer(a.keyPrefix, req.FleetName, req.RoomID),
 		redisKeyFleetCapacities(a.keyPrefix),
 		redisKeyAvailableContainersIndex(a.keyPrefix, req.FleetName),
-	}, []string{req.FleetName, channelPrefix, allocationEvent})
+		redisKeyContainerToRoomsPrefix(a.keyPrefix, req.FleetName),
+		redisPubSubChannelContainerPrefix(a.keyPrefix, req.FleetName),
+	}, []string{req.RoomID, req.FleetName, allocationEvent})
 	if err := res.Error(); err != nil {
 		if rueidis.IsRedisNil(err) {
 			return "", arena.NewError(arena.ErrorStatusResourceExhausted, errors.New("no available container"))
 		}
 		return "", arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to allocate room: %w", err))
 	}
-	containerAddress, err := res.ToString()
+	containerID, err := res.ToString()
 	if err != nil {
 		return "", arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to parse redis result as string: %w", err))
 	}
-	return containerAddress, nil
+	return containerID, nil
 }
