@@ -90,31 +90,34 @@ func (a *redisFrontend) AllocateRoom(ctx context.Context, req arena.AllocateRoom
 	return &arena.AllocateRoomResponse{RoomID: req.RoomID, ContainerID: containerID}, nil
 }
 
-func (a *redisFrontend) GetRoomResult(ctx context.Context, req arena.GetRoomResultRequest) (*arena.GetRoomResultResponse, error) {
+func (a *redisFrontend) NotifyToRoom(ctx context.Context, req arena.NotifyToRoomRequest) error {
 	if req.RoomID == "" {
-		return nil, arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing room id"))
+		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing room id"))
 	}
-	key := redisKeyRoomResult(a.keyPrefix, req.RoomID)
-	cmd := a.client.B().Get().Key(key).Build()
-	res := a.client.Do(ctx, cmd)
-	if err := res.Error(); err != nil {
-		if rueidis.IsRedisNil(err) {
-			return nil, arena.NewError(arena.ErrorStatusNotFound, err)
-		}
-		return nil, arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to get room result: %w", err))
+	if req.FleetName == "" {
+		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing fleet name"))
 	}
-	data, err := res.AsBytes()
+	if len(req.Body) == 0 {
+		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing body"))
+	}
+	containerID, err := a.getContainerIDByRoom(ctx, req.FleetName, req.RoomID)
 	if err != nil {
-		return nil, arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to parse redis result as bytes: %w", err))
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to parse redis result as string: %w", err))
 	}
-	return &arena.GetRoomResultResponse{
-		RoomID:         req.RoomID,
-		RoomResultData: data,
-	}, nil
+	channel := redisPubSubChannelContainer(a.keyPrefix, req.FleetName, containerID)
+	data, err := encodeNotifyToRoomEvent(req.RoomID, req.Body)
+	if err != nil {
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to encode NotifyToRoomEvent: %w", err))
+	}
+	cmd := a.client.B().Publish().Channel(channel).Message(data).Build()
+	if err := a.client.Do(ctx, cmd).Error(); err != nil {
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to publish message to container: %w", err))
+	}
+	return nil
 }
 
 func (a *redisFrontend) allocateRoom(ctx context.Context, req arena.AllocateRoomRequest) (string, error) {
-	allocationEvent, err := encodeRoomAllocationEvent(arena.AllocationEvent{RoomID: req.RoomID, RoomInitialData: req.RoomInitialData})
+	allocationEvent, err := encodeAllocationEvent(req.RoomID, req.RoomInitialData)
 	if err != nil {
 		return "", arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to encode allocation event: %w", err))
 	}
@@ -130,6 +133,23 @@ func (a *redisFrontend) allocateRoom(ctx context.Context, req arena.AllocateRoom
 			return "", arena.NewError(arena.ErrorStatusResourceExhausted, errors.New("no available container"))
 		}
 		return "", arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to allocate room: %w", err))
+	}
+	containerID, err := res.ToString()
+	if err != nil {
+		return "", arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to parse redis result as string: %w", err))
+	}
+	return containerID, nil
+}
+
+func (a *redisFrontend) getContainerIDByRoom(ctx context.Context, fleetName, roomID string) (string, error) {
+	key := redisKeyRoomToContainer(a.keyPrefix, fleetName, roomID)
+	cmd := a.client.B().Get().Key(key).Build()
+	res := a.client.Do(ctx, cmd)
+	if err := res.Error(); err != nil {
+		if rueidis.IsRedisNil(err) {
+			return "", arena.NewError(arena.ErrorStatusNotFound, fmt.Errorf("room %s not found in fleet %s", roomID, fleetName))
+		}
+		return "", arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to find container id by room: %w", err))
 	}
 	containerID, err := res.ToString()
 	if err != nil {

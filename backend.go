@@ -2,7 +2,6 @@ package arena
 
 import (
 	"context"
-	"time"
 )
 
 type Backend interface {
@@ -11,9 +10,6 @@ type Backend interface {
 
 	// DeleteContainer removes a container from arena.
 	DeleteContainer(ctx context.Context, req DeleteContainerRequest) error
-
-	// SetRoomResult sets the result data of a session in a Room.
-	SetRoomResult(ctx context.Context, req SetRoomResultRequest) error
 
 	// ReleaseRoom releases a room and makes it available for allocation.
 	ReleaseRoom(ctx context.Context, req ReleaseRoomRequest) error
@@ -26,13 +22,26 @@ type AddContainerRequest struct {
 }
 
 type AddContainerResponse struct {
-	AllocationChannel <-chan AllocationEvent
+	EventChannel <-chan ToContainerEvent
+}
+
+type ToContainerEvent interface {
+	toContainerEvent()
 }
 
 type AllocationEvent struct {
 	RoomID          string
 	RoomInitialData []byte
 }
+
+func (e *AllocationEvent) toContainerEvent() {}
+
+type NotifyToRoomEvent struct {
+	RoomID string
+	Body   []byte
+}
+
+func (e *NotifyToRoomEvent) toContainerEvent() {}
 
 type DeleteContainerRequest struct {
 	ContainerID string
@@ -43,10 +52,4 @@ type ReleaseRoomRequest struct {
 	ContainerID string
 	FleetName   string
 	RoomID      string
-}
-
-type SetRoomResultRequest struct {
-	RoomID         string
-	RoomResultData []byte
-	ResultDataTTL  time.Duration
 }

@@ -67,7 +67,7 @@ func main() {
 		return
 	}
 	go func() {
-		for room := range resp.AllocationChannel {
+		for room := range resp.EventChannel {
 			slog.Info(fmt.Sprintf("allocated: %+v", room))
 		}
 	}()

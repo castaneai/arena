@@ -39,50 +39,32 @@ func (c *container) stop() {
 	c.stopFunc()
 }
 
-// start uses Redis Streams to receive events occurring in a specific Room in realtime.
-func (c *container) start() (<-chan arena.AllocationEvent, error) {
-	ch := make(chan arena.AllocationEvent, defaultAllocationChannelBufferSize)
-
-	dc, stopDedicatedClient := c.client.Dedicate()
-	subscribed := make(chan struct{})
-	pubsubClosed := dc.SetPubSubHooks(rueidis.PubSubHooks{
-		OnMessage: func(msg rueidis.PubSubMessage) {
-			allocationEvent, err := decodeRoomAllocationEvent(msg.Message)
-			if err != nil {
-				slog.Error(fmt.Sprintf("failed to decode allocation event: %v", err))
-				return
-			}
-			select {
-			case ch <- *allocationEvent:
-			default:
-				slog.Error(fmt.Sprintf("room allocated but channel is full: %+v", allocationEvent))
-			}
-		},
-		OnSubscription: func(s rueidis.PubSubSubscription) {
-			close(subscribed)
-		},
-	})
+// start receives events occurring in a specific Room in realtime.
+func (c *container) start() (<-chan arena.ToContainerEvent, error) {
+	ch := make(chan arena.ToContainerEvent, defaultAllocationChannelBufferSize)
 	channel := redisPubSubChannelContainer(c.keyPrefix, c.fleetName, c.containerID)
-	cmd := c.client.B().Subscribe().Channel(channel).Build()
-	if err := dc.Do(c.stopCtx, cmd).Error(); err != nil {
-		stopDedicatedClient()
-		return nil, fmt.Errorf("failed to subscribe to channel '%s': %w", channel, err)
+	received, _, err := subscribe(c.stopCtx, c.client, channel)
+	if err != nil {
+		return nil, err
 	}
 	go func() {
-		defer stopDedicatedClient()
-		select {
-		case <-c.stopCtx.Done():
-		case <-pubsubClosed:
+		for {
+			select {
+			case <-c.stopCtx.Done():
+				return
+			case msg := <-received:
+				ev, err := decodeToContainerEvent(msg)
+				if err != nil {
+					slog.Error(fmt.Sprintf("failed to decode allocation event: %v", err))
+					return
+				}
+				select {
+				case ch <- ev:
+				default:
+					slog.Error(fmt.Sprintf("toContainer event received but channel is full: %+v", ev))
+				}
+			}
 		}
 	}()
-
-	// Wait for the subscription to be established before returning the channel.
-	select {
-	case <-c.stopCtx.Done():
-		return nil, c.stopCtx.Err()
-	case err := <-pubsubClosed:
-		return nil, err
-	case <-subscribed:
-		return ch, nil
-	}
+	return ch, nil
 }

@@ -18,7 +18,7 @@ local available_containers_key = KEYS[2]
 local container_id = ARGV[1]
 local fleet_name = ARGV[2]
 local capacity = redis.call('ZSCORE', available_containers_key, container_id)
-if capacity ~= nil then
+if capacity then
 	redis.call('ZINCRBY', fleet_capacities_key, -capacity, fleet_name)
 end
 return redis.call('ZREM', available_containers_key, container_id)
@@ -68,7 +68,7 @@ func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerR
 	}
 
 	return &arena.AddContainerResponse{
-		AllocationChannel: ch,
+		EventChannel: ch,
 	}, nil
 }
 
@@ -95,24 +95,6 @@ func (b *redisBackend) DeleteContainer(ctx context.Context, req arena.DeleteCont
 	flt := b.getOrCreateFleet(req.FleetName)
 	flt.DeleteContainer(req.ContainerID)
 
-	return nil
-}
-
-func (b *redisBackend) SetRoomResult(ctx context.Context, req arena.SetRoomResultRequest) error {
-	if req.RoomID == "" {
-		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing room id"))
-	}
-	if req.ResultDataTTL == 0 {
-		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing result data ttl"))
-	}
-	if req.RoomResultData == nil {
-		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing room result data"))
-	}
-	key := redisKeyRoomResult(b.keyPrefix, req.RoomID)
-	cmd := b.client.B().Set().Key(key).Value(rueidis.BinaryString(req.RoomResultData)).Ex(req.ResultDataTTL).Build()
-	if err := b.client.Do(ctx, cmd).Error(); err != nil {
-		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to set room result to redis: %w", err))
-	}
 	return nil
 }
 

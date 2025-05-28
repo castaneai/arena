@@ -4,10 +4,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/redis/rueidis"
 
 	"github.com/castaneai/arena"
+)
+
+const (
+	toContainerEventNameAllocationEvent   = "AllocationEvent"
+	toContainerEventNameNotifyToRoomEvent = "NotifyToRoomEvent"
 )
 
 type allocationEventJSON struct {
@@ -15,35 +21,81 @@ type allocationEventJSON struct {
 	RoomInitialData string `json:"room_initial_data,omitempty"`
 }
 
-func encodeRoomAllocationEvent(ev arena.AllocationEvent) (string, error) {
-	j := allocationEventJSON{
-		RoomID:          ev.RoomID,
-		RoomInitialData: base64.StdEncoding.EncodeToString(ev.RoomInitialData),
-	}
-	data, err := json.Marshal(j)
-	if err != nil {
-		return "", fmt.Errorf("failed to encode allocation event: %w", err)
-	}
-	return rueidis.BinaryString(data), nil
+type notifyToRoomEventJSON struct {
+	RoomID string `json:"room_id"`
+	Body   string `json:"body"`
 }
 
-func decodeRoomAllocationEvent(data string) (*arena.AllocationEvent, error) {
-	var j allocationEventJSON
-	if err := json.Unmarshal([]byte(data), &j); err != nil {
-		return nil, fmt.Errorf("failed to decode allocation event: %w", err)
+func encodeAllocationEvent(roomID string, roomInitialData []byte) (string, error) {
+	j := allocationEventJSON{
+		RoomID:          roomID,
+		RoomInitialData: base64.StdEncoding.EncodeToString(roomInitialData),
 	}
-	if j.RoomID == "" {
-		return nil, fmt.Errorf("failed to decode allocation event: missing room_id")
+	bytes, err := json.Marshal(j)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode AllocationEvent: %w", err)
 	}
-	result := &arena.AllocationEvent{
-		RoomID: j.RoomID,
+	return toContainerEventNameAllocationEvent + ":" + rueidis.BinaryString(bytes), nil
+}
+
+func encodeNotifyToRoomEvent(roomID string, body []byte) (string, error) {
+	j := notifyToRoomEventJSON{
+		RoomID: roomID,
+		Body:   base64.StdEncoding.EncodeToString(body),
 	}
-	if j.RoomInitialData != "" {
-		roomInitialData, err := base64.StdEncoding.DecodeString(j.RoomInitialData)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode room initial data: %w", err)
+	bytes, err := json.Marshal(j)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode NotifyToRoomEvent: %w", err)
+	}
+	return toContainerEventNameNotifyToRoomEvent + ":" + rueidis.BinaryString(bytes), nil
+}
+
+func decodeToContainerEvent(data string) (arena.ToContainerEvent, error) {
+	parts := strings.SplitN(data, ":", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("failed to decode toContainer event: invalid format, expected 'event_name:data'")
+	}
+	eventName := parts[0]
+	body := parts[1]
+
+	switch eventName {
+	case toContainerEventNameAllocationEvent:
+		var j allocationEventJSON
+		if err := json.Unmarshal([]byte(body), &j); err != nil {
+			return nil, fmt.Errorf("failed to decode allocation event: %w", err)
 		}
-		result.RoomInitialData = roomInitialData
+		if j.RoomID == "" {
+			return nil, fmt.Errorf("failed to decode allocation event: missing room_id")
+		}
+		result := &arena.AllocationEvent{
+			RoomID: j.RoomID,
+		}
+		if j.RoomInitialData != "" {
+			roomInitialData, err := base64.StdEncoding.DecodeString(j.RoomInitialData)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode room initial data: %w", err)
+			}
+			result.RoomInitialData = roomInitialData
+		}
+		return result, nil
+	case toContainerEventNameNotifyToRoomEvent:
+		var j notifyToRoomEventJSON
+		if err := json.Unmarshal([]byte(body), &j); err != nil {
+			return nil, fmt.Errorf("failed to decode NotifyToRoomEvent: %w", err)
+		}
+		if j.RoomID == "" {
+			return nil, fmt.Errorf("failed to decode NotifyToRoomEvent: missing room_id")
+		}
+		result := &arena.NotifyToRoomEvent{
+			RoomID: j.RoomID,
+		}
+		b, err := base64.StdEncoding.DecodeString(j.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode NotifyToRoomEvent body: %w", err)
+		}
+		result.Body = b
+		return result, nil
+	default:
+		return nil, fmt.Errorf("failed to decode toContainer event: unknown event name '%s'", eventName)
 	}
-	return result, nil
 }

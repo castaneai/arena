@@ -9,9 +9,9 @@ type Frontend interface {
 	// If there is no vacancy, it returns Error with code: ErrorStatusResourceExhausted.
 	AllocateRoom(ctx context.Context, req AllocateRoomRequest) (*AllocateRoomResponse, error)
 
-	// GetRoomResult retrieves the result data of a session in a Room.
-	// If the result does not exist, Error is returned with code: ErrorStatusNotFound.
-	GetRoomResult(ctx context.Context, req GetRoomResultRequest) (*GetRoomResultResponse, error)
+	// NotifyToRoom sends a message to a Room.
+	// If the room does not exist, Error is returned with code: ErrorStatusNotFound.
+	NotifyToRoom(ctx context.Context, req NotifyToRoomRequest) error
 }
 
 type AllocateRoomRequest struct {
@@ -25,11 +25,8 @@ type AllocateRoomResponse struct {
 	ContainerID string
 }
 
-type GetRoomResultRequest struct {
-	RoomID string
-}
-
-type GetRoomResultResponse struct {
-	RoomID         string
-	RoomResultData []byte
+type NotifyToRoomRequest struct {
+	RoomID    string
+	FleetName string
+	Body      []byte
 }

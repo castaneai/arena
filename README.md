@@ -30,7 +30,7 @@ sequenceDiagram
         Player ->> Matchmaker: Request Matchmaking
         Matchmaker ->> Arena: Frontend.AllocateRoom()
         activate Arena
-        Arena ->> Container: Allocation event
+        Arena ->> Container: AllocationEvent
         Note over Container: capacity -= 1
         Arena ->> Matchmaker: Container ID
         deactivate Arena
@@ -39,7 +39,6 @@ sequenceDiagram
         Player ->> Container: Join
         Note over Container: Game session occurs...
         Player ->> Container: Leave
-        Container ->> Arena: Backend.SetRoomResult()
         Container ->> Arena: Backend.ReleaseRoom()
         Note over Container: capacity += 1
     end

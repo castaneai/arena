@@ -24,10 +24,6 @@ func redisKeyContainerToRooms(prefix, fleetName, containerID string) string {
 	return fmt.Sprintf("%s%s", redisKeyContainerToRoomsPrefix(prefix, fleetName), containerID)
 }
 
-func redisKeyRoomResult(prefix, roomID string) string {
-	return fmt.Sprintf("%s%s:room_result", prefix, roomID)
-}
-
 func redisPubSubChannelContainerPrefix(prefix, fleetName string) string {
 	return fmt.Sprintf("%s%s:container_channel:", prefix, fleetName)
 }
