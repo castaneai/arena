@@ -91,6 +91,23 @@ func (b *redisBackend) DeleteContainer(ctx context.Context, req arena.DeleteCont
 	if err := res.Error(); err != nil {
 		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to exec delete container script: %w", err))
 	}
+	key := redisKeyContainerToRooms(b.keyPrefix, req.FleetName, req.ContainerID)
+	cmd := b.client.B().Smembers().Key(key).Build()
+	res = b.client.Do(ctx, cmd)
+	if err := res.Error(); err != nil {
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to get rooms for container '%s': %w", req.ContainerID, err))
+	}
+	rooms, err := res.AsStrSlice()
+	if err != nil {
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to parse rooms as string slice: %w", err))
+	}
+	delCmd := b.client.B().Del().Key(key)
+	for _, roomID := range rooms {
+		delCmd.Key(redisKeyRoomToContainer(b.keyPrefix, req.FleetName, roomID))
+	}
+	if err := b.client.Do(ctx, delCmd.Build()).Error(); err != nil {
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to delete rooms for container '%s': %w", req.ContainerID, err))
+	}
 
 	flt := b.getOrCreateFleet(req.FleetName)
 	flt.DeleteContainer(req.ContainerID)
