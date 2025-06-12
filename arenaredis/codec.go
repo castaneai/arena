@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/redis/rueidis"
 
@@ -98,4 +99,16 @@ func decodeToContainerEvent(data string) (arena.ToContainerEvent, error) {
 	default:
 		return nil, fmt.Errorf("failed to decode toContainer event: unknown event name '%s'", eventName)
 	}
+}
+
+func encodeHeartbeatTTLValue(ttl time.Duration) string {
+	return fmt.Sprintf("alive:%d", int(ttl.Seconds()))
+}
+
+func decodeHeartbeatTTLValue(value string) (time.Duration, error) {
+	var ttlSeconds int
+	if _, err := fmt.Sscanf(value, "alive:%d", &ttlSeconds); err != nil {
+		return 0, fmt.Errorf("failed to parse heartbeat TTL value: %w", err)
+	}
+	return time.Duration(ttlSeconds) * time.Second, nil
 }

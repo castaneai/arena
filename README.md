@@ -2,6 +2,12 @@
 
 Arena manages room allocations for multiplayer games.
 
+Arena is designed for dynamically provisioning resources for stateful workloads such as dedicated game servers and AI inference backends. It provides a way to allocate **Rooms** - execution environments where these workloads run.
+
+While [Agones](https://agones.dev/) serves a similar purpose in the open-source ecosystem, Arena operates independently of Kubernetes and can function in any environment. Of course, Arena can also be used alongside Agones when needed.
+
+## Key concepts
+
 A **Room** is the place where a single game session starts.
 The process of starting a multiplayer game (e.g. Matchmaker) calls `Frontend.AllocateRoom` and returns the container ID to the player.
 
@@ -25,8 +31,11 @@ sequenceDiagram
     participant Arena
     participant Container
 
-    Container ->> Arena: Backend.AddContainer
+    Container ->> Arena: Backend.AddContainer(HeartbeatTTL: 30s)
     loop Container is alive
+        loop Heartbeat (every 10s)
+            Container ->> Arena: Backend.SendHeartbeat()
+        end
         Player ->> Matchmaker: Request Matchmaking
         Matchmaker ->> Arena: Frontend.AllocateRoom()
         activate Arena
@@ -45,6 +54,16 @@ sequenceDiagram
     Note over Container: Shutdown container
     Container ->> Arena: Backend.DeleteContainer
 ```
+
+## Heartbeat
+
+To prevent invalid container information from remaining in Arena when containers crash, containers must periodically report their liveness using `Backend.SendHeartbeat`.
+
+- Containers can specify a heartbeat TTL (Time To Live) when calling `Backend.AddContainer`
+- If no TTL is specified, the default is 30 seconds  
+- Containers should call `Backend.SendHeartbeat` at regular intervals (recommended: every 10 seconds for a 30-second TTL)
+- If a container fails to send heartbeats within the TTL period, Arena automatically removes it from the available container pool
+
 
 ## License
 

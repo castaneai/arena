@@ -31,3 +31,11 @@ func redisPubSubChannelContainerPrefix(prefix, fleetName string) string {
 func redisPubSubChannelContainer(prefix, fleetName, containerID string) string {
 	return fmt.Sprintf("%s%s", redisPubSubChannelContainerPrefix(prefix, fleetName), containerID)
 }
+
+func redisKeyContainerHeartbeatPrefix(prefix, fleetName string) string {
+	return fmt.Sprintf("%s%s:heartbeat:", prefix, fleetName)
+}
+
+func redisKeyContainerHeartbeat(prefix, fleetName, containerID string) string {
+	return fmt.Sprintf("%s%s", redisKeyContainerHeartbeatPrefix(prefix, fleetName), containerID)
+}

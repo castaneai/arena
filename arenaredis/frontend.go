@@ -20,13 +20,32 @@ end
 
 local fleet_capacities_key = KEYS[2]
 local available_containers_key = KEYS[3]
--- Find one container that has a vacancy in capacity.
-local found = redis.call('ZRANGE', available_containers_key, '(0', '+inf', 'BYSCORE', 'LIMIT', 0, 1)
+local heartbeat_prefix = KEYS[6]
+
+-- Find containers that have vacancy in capacity
+local found = redis.call('ZRANGE', available_containers_key, '(0', '+inf', 'BYSCORE')
 if #found == 0 then
     return nil
 end
 
-container_id = found[1]
+-- Check heartbeat for each container and find first alive one
+for i, candidate_id in ipairs(found) do
+    local heartbeat_key = heartbeat_prefix .. candidate_id
+    if redis.call('EXISTS', heartbeat_key) == 1 then
+        container_id = candidate_id
+        break
+    else
+        -- Remove dead container from available containers
+        redis.call('ZREM', available_containers_key, candidate_id)
+        local current_capacity = redis.call('ZSCORE', available_containers_key, candidate_id) or 0
+        redis.call('ZINCRBY', fleet_capacities_key, -current_capacity, ARGV[2])
+    end
+end
+
+if not container_id then
+    return nil
+end
+
 local room_id = ARGV[1]
 local fleet_name = ARGV[2]
 redis.call('ZINCRBY', fleet_capacities_key, -1, fleet_name)
@@ -127,6 +146,7 @@ func (a *redisFrontend) allocateRoom(ctx context.Context, req arena.AllocateRoom
 		redisKeyAvailableContainersIndex(a.keyPrefix, req.FleetName),
 		redisKeyContainerToRoomsPrefix(a.keyPrefix, req.FleetName),
 		redisPubSubChannelContainerPrefix(a.keyPrefix, req.FleetName),
+		redisKeyContainerHeartbeatPrefix(a.keyPrefix, req.FleetName),
 	}, []string{req.RoomID, req.FleetName, allocationEvent})
 	if err := res.Error(); err != nil {
 		if rueidis.IsRedisNil(err) {
