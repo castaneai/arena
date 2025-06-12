@@ -33,6 +33,9 @@ func main() {
 	ctx, shutdown := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer shutdown()
 
+	// Set log level to info to see heartbeat logs
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+
 	otelRes, err := resource.New(ctx, resource.WithAttributes(semconv.ServiceName(serviceName)))
 	if err != nil {
 		err := fmt.Errorf("failed to create otel resource: %w", err)
@@ -60,7 +63,14 @@ func main() {
 	}
 	frontend := arenaredis.NewFrontend(redisKeyPrefix, redisClient)
 	backend := arenaredis.NewBackend(redisKeyPrefix, redisClient)
-	resp, err := backend.AddContainer(ctx, arena.AddContainerRequest{FleetName: fleetName, ContainerID: "dummy", InitialCapacity: 9999999})
+	
+	containerID := "dummy"
+	resp, err := backend.AddContainer(ctx, arena.AddContainerRequest{
+		FleetName:       fleetName,
+		ContainerID:     containerID,
+		InitialCapacity: 9999999,
+		HeartbeatTTL:    30 * time.Second,
+	})
 	if err != nil {
 		err := fmt.Errorf("failed to add container: %w", err)
 		slog.Error(err.Error(), "error", err)
@@ -69,6 +79,27 @@ func main() {
 	go func() {
 		for room := range resp.EventChannel {
 			slog.Info(fmt.Sprintf("allocated: %+v", room))
+		}
+	}()
+
+	// Start heartbeat goroutine
+	go func() {
+		heartbeatTicker := time.NewTicker(10 * time.Second)
+		defer heartbeatTicker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-heartbeatTicker.C:
+				if err := backend.SendHeartbeat(ctx, arena.SendHeartbeatRequest{
+					ContainerID: containerID,
+					FleetName:   fleetName,
+				}); err != nil {
+					slog.Error("failed to send heartbeat", "error", err)
+				} else {
+					slog.Info("heartbeat sent successfully")
+				}
+			}
 		}
 	}()
 

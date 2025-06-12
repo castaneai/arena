@@ -2,6 +2,11 @@ package arena
 
 import (
 	"context"
+	"time"
+)
+
+const (
+	DefaultHeartbeatTTL = 30 * time.Second
 )
 
 type Backend interface {
@@ -13,12 +18,16 @@ type Backend interface {
 
 	// ReleaseRoom releases a room and makes it available for allocation.
 	ReleaseRoom(ctx context.Context, req ReleaseRoomRequest) error
+
+	// SendHeartbeat sends a heartbeat to keep the container alive.
+	SendHeartbeat(ctx context.Context, req SendHeartbeatRequest) error
 }
 
 type AddContainerRequest struct {
 	ContainerID     string
 	FleetName       string
 	InitialCapacity int
+	HeartbeatTTL    time.Duration // TTL for heartbeat, uses DefaultHeartbeatTTL if 0
 }
 
 type AddContainerResponse struct {
@@ -52,4 +61,9 @@ type ReleaseRoomRequest struct {
 	ContainerID string
 	FleetName   string
 	RoomID      string
+}
+
+type SendHeartbeatRequest struct {
+	ContainerID string
+	FleetName   string
 }

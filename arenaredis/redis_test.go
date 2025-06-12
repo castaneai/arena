@@ -127,6 +127,45 @@ func TestNotifyToRoom(t *testing.T) {
 	require.Equal(t, "hello_room1", string(ev2.Body))
 }
 
+func TestHeartbeat(t *testing.T) {
+	fleet1Name := "fleet1"
+	ctx := t.Context()
+	frontend, backend, _ := newFrontendBackendMetrics(t)
+
+	// Test heartbeat functionality - should fail for non-existent container
+	err := backend.SendHeartbeat(ctx, arena.SendHeartbeatRequest{ContainerID: "con1", FleetName: fleet1Name})
+	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusNotFound))
+
+	// Add container with short TTL for testing
+	ttl := 3 * time.Second
+	con1, err := backend.AddContainer(ctx, arena.AddContainerRequest{ContainerID: "con1", InitialCapacity: 2, FleetName: fleet1Name, HeartbeatTTL: ttl})
+	require.NoError(t, err)
+
+	// Initially should be able to allocate room
+	room1, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room1", FleetName: fleet1Name})
+	require.NoError(t, err)
+	require.Equal(t, "con1", room1.ContainerID)
+	ev := mustReadChan(t, con1.EventChannel).(*arena.AllocationEvent)
+	require.Equal(t, "room1", ev.RoomID)
+
+	// Wait close to TTL expiry, then send heartbeat to refresh
+	time.Sleep(ttl - time.Second)
+	err = backend.SendHeartbeat(ctx, arena.SendHeartbeatRequest{ContainerID: "con1", FleetName: fleet1Name})
+	require.NoError(t, err)
+
+	// Should still be able to allocate room after refresh
+	room2, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room2", FleetName: fleet1Name})
+	require.NoError(t, err)
+	require.Equal(t, "con1", room2.ContainerID)
+
+	// Wait for heartbeat to expire (4 seconds > 3 seconds TTL since last heartbeat)
+	time.Sleep(ttl + time.Second)
+
+	// After heartbeat expires, allocation should fail (no available containers)
+	_, err = frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room3", FleetName: fleet1Name})
+	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusResourceExhausted))
+}
+
 func newFrontendBackendMetrics(t *testing.T) (arena.Frontend, arena.Backend, *Metrics) {
 	t.Helper()
 	frontendClient, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{localRedisAddr}, DisableCache: true})
