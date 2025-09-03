@@ -60,6 +60,12 @@ func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerR
 	}
 	ttlSeconds := int(ttl.Seconds())
 
+	c := newContainer(b.client, b.keyPrefix, req)
+	ch, err := c.start()
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen allocation: %w", err)
+	}
+
 	cmds := []rueidis.Completed{
 		// add the fleet capacity to the fleet capacities index
 		b.client.B().Zincrby().Key(redisKeyFleetCapacities(b.keyPrefix)).Increment(float64(req.InitialCapacity)).Member(req.FleetName).Build(),
@@ -74,13 +80,8 @@ func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerR
 		}
 	}
 
-	c := newContainer(b.client, b.keyPrefix, req)
 	flt := b.getOrCreateFleet(req.FleetName)
 	flt.AddContainer(c)
-	ch, err := c.start()
-	if err != nil {
-		return nil, fmt.Errorf("failed to listen allocation: %w", err)
-	}
 
 	return &arena.AddContainerResponse{
 		EventChannel: ch,
