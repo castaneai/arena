@@ -7,13 +7,16 @@ import (
 	"github.com/redis/rueidis"
 )
 
-func subscribe(ctx context.Context, c rueidis.Client, channel string) (<-chan string, context.CancelFunc, error) {
-	dc, closeDedicatedClient := c.Dedicate()
+func subscribe(ctx context.Context, c rueidis.DedicatedClient, pubsubChannelName string) (<-chan string, error) {
 	subscribed := make(chan struct{})
 	received := make(chan string)
-	closed := dc.SetPubSubHooks(rueidis.PubSubHooks{
+	// > wait channel is guaranteed to be close when the hooks will not be called anymore,
+	// > and produce at most one error describing the reason.
+	// > Users can use this channel to detect disconnection.
+	// https://pkg.go.dev/github.com/rueian/rueidis#readme-alternative-pubsub-hooks
+	wait := c.SetPubSubHooks(rueidis.PubSubHooks{
 		OnMessage: func(msg rueidis.PubSubMessage) {
-			if msg.Channel == channel {
+			if msg.Channel == pubsubChannelName {
 				received <- msg.Message
 			}
 		},
@@ -21,26 +24,18 @@ func subscribe(ctx context.Context, c rueidis.Client, channel string) (<-chan st
 			close(subscribed)
 		},
 	})
-	cmd := c.B().Subscribe().Channel(channel).Build()
-	if err := dc.Do(ctx, cmd).Error(); err != nil {
-		closeDedicatedClient()
-		return nil, nil, fmt.Errorf("failed to subscribe to channel '%s': %w", channel, err)
+	cmd := c.B().Subscribe().Channel(pubsubChannelName).Build()
+	if err := c.Do(ctx, cmd).Error(); err != nil {
+		return nil, fmt.Errorf("failed to subscribe to channel '%s': %w", pubsubChannelName, err)
 	}
-	go func() {
-		defer closeDedicatedClient()
-		select {
-		case <-ctx.Done():
-		case <-closed:
-		}
-	}()
 
 	// Wait for subscription to be confirmed.
 	select {
 	case <-ctx.Done():
-		return nil, nil, ctx.Err()
-	case err := <-closed:
-		return nil, nil, fmt.Errorf("subscription has been closed '%s': %w", channel, err)
+		return nil, ctx.Err()
+	case err := <-wait:
+		return nil, fmt.Errorf("subscription has been closed '%s': %w", pubsubChannelName, err)
 	case <-subscribed:
 	}
-	return received, closeDedicatedClient, nil
+	return received, nil
 }

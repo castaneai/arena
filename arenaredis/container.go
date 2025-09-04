@@ -17,7 +17,7 @@ const (
 type container struct {
 	containerID string
 	fleetName   string
-	client      rueidis.Client
+	client      rueidis.DedicatedClient
 	keyPrefix   string
 	stopCtx     context.Context
 	stopFunc    context.CancelFunc
@@ -25,13 +25,17 @@ type container struct {
 
 func newContainer(client rueidis.Client, keyPrefix string, req arena.AddContainerRequest) *container {
 	stopCtx, stopFunc := context.WithCancel(context.Background())
+	dc, releaseDedicatedClient := client.Dedicate()
 	return &container{
 		containerID: req.ContainerID,
 		fleetName:   req.FleetName,
-		client:      client,
+		client:      dc,
 		keyPrefix:   keyPrefix,
 		stopCtx:     stopCtx,
-		stopFunc:    stopFunc,
+		stopFunc: func() {
+			releaseDedicatedClient()
+			stopFunc()
+		},
 	}
 }
 
@@ -43,7 +47,7 @@ func (c *container) stop() {
 func (c *container) start() (<-chan arena.ToContainerEvent, error) {
 	ch := make(chan arena.ToContainerEvent, defaultAllocationChannelBufferSize)
 	channel := redisPubSubChannelContainer(c.keyPrefix, c.fleetName, c.containerID)
-	received, _, err := subscribe(c.stopCtx, c.client, channel)
+	received, err := subscribe(c.stopCtx, c.client, channel)
 	if err != nil {
 		return nil, err
 	}
