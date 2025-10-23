@@ -70,4 +70,21 @@ func TestMetrics(t *testing.T) {
 	fleet1Capacity, err = metrics.GetFleetCapacity(ctx, fleet1Name)
 	require.NoError(t, err)
 	require.Equal(t, 2, fleet1Capacity)
+
+	// Test GetContainers
+	containers, err := metrics.GetContainers(ctx, fleet1Name)
+	require.NoError(t, err)
+	require.Len(t, containers, 1) // Only con2 should remain
+	require.Equal(t, "con2", containers[0].ContainerID)
+	require.Equal(t, 2, containers[0].Capacity)
+
+	// Test GetContainers for empty fleet
+	emptyContainers, err := metrics.GetContainers(ctx, "nonexistent_fleet")
+	require.NoError(t, err)
+	require.Len(t, emptyContainers, 0)
+
+	// Test GetContainers for fleet2 (should have 0 capacity containers)
+	fleet2Containers, err := metrics.GetContainers(ctx, fleet2Name)
+	require.NoError(t, err)
+	require.Len(t, fleet2Containers, 0) // con1 in fleet2 has 0 capacity after room allocation
 }
