@@ -4,10 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/redis/rueidis"
 
 	"github.com/castaneai/arena"
+)
+
+const (
+	defaultCandidateContainerMaxCount = 100
 )
 
 var (
@@ -20,9 +25,10 @@ end
 
 local available_containers_key = KEYS[2]
 local heartbeat_prefix = KEYS[5]
+local candidate_container_max_count = ARGV[4]
 
 -- Find containers that have vacancy in capacity
-local found = redis.call('ZRANGE', available_containers_key, '(0', '+inf', 'BYSCORE')
+local found = redis.call('ZRANGE', available_containers_key, '(0', '+inf', 'BYSCORE', 'LIMIT', '0', candidate_container_max_count)
 if #found == 0 then
     return nil
 end
@@ -69,10 +75,13 @@ type RedisFrontendOption interface {
 }
 
 type redisFrontendOptions struct {
+	candidateContainerMaxCount int
 }
 
 func newRedisFrontendOptions(opts ...RedisFrontendOption) *redisFrontendOptions {
-	options := &redisFrontendOptions{}
+	options := &redisFrontendOptions{
+		candidateContainerMaxCount: defaultCandidateContainerMaxCount,
+	}
 	for _, opt := range opts {
 		opt.apply(options)
 	}
@@ -83,6 +92,12 @@ type redisFrontendOptionFunc func(*redisFrontendOptions)
 
 func (f redisFrontendOptionFunc) apply(options *redisFrontendOptions) {
 	f(options)
+}
+
+func WithCandidateContainerMaxCount(count int) RedisFrontendOption {
+	return redisFrontendOptionFunc(func(options *redisFrontendOptions) {
+		options.candidateContainerMaxCount = count
+	})
 }
 
 func NewFrontend(keyPrefix string, client rueidis.Client, opts ...RedisFrontendOption) arena.Frontend {
@@ -142,7 +157,7 @@ func (a *redisFrontend) allocateRoom(ctx context.Context, req arena.AllocateRoom
 		redisKeyContainerToRoomsPrefix(a.keyPrefix, req.FleetName),
 		redisPubSubChannelContainerPrefix(a.keyPrefix, req.FleetName),
 		redisKeyContainerHeartbeatPrefix(a.keyPrefix, req.FleetName),
-	}, []string{req.RoomID, req.FleetName, allocationEvent})
+	}, []string{req.RoomID, req.FleetName, allocationEvent, strconv.Itoa(a.options.candidateContainerMaxCount)})
 	if err := res.Error(); err != nil {
 		if rueidis.IsRedisNil(err) {
 			return "", arena.NewError(arena.ErrorStatusResourceExhausted, errors.New("no available container"))
