@@ -12,20 +12,6 @@ import (
 	"github.com/castaneai/arena"
 )
 
-var (
-	deleteContainerScript = rueidis.NewLuaScript(`
-local fleet_capacities_key = KEYS[1]
-local available_containers_key = KEYS[2]
-local container_id = ARGV[1]
-local fleet_name = ARGV[2]
-local capacity = redis.call('ZSCORE', available_containers_key, container_id)
-if capacity then
-	redis.call('ZINCRBY', fleet_capacities_key, -capacity, fleet_name)
-end
-return redis.call('ZREM', available_containers_key, container_id)
-`)
-)
-
 type redisBackend struct {
 	keyPrefix string
 	client    rueidis.Client
@@ -67,13 +53,18 @@ func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerR
 	}
 
 	cmds := []rueidis.Completed{
-		// add the fleet capacity to the fleet capacities index
-		b.client.B().Zincrby().Key(redisKeyFleetCapacities(b.keyPrefix)).Increment(float64(req.InitialCapacity)).Member(req.FleetName).Build(),
-		// add the container to the available containers index
-		b.client.B().Zincrby().Key(redisKeyAvailableContainersIndex(b.keyPrefix, req.FleetName)).Increment(float64(req.InitialCapacity)).Member(req.ContainerID).Build(),
+		// set (overwrite) the container capacity in the available containers index
+		// Note: We overwrite with the new initial capacity, ignoring existing state
+		b.client.B().Zadd().Key(redisKeyAvailableContainersIndex(b.keyPrefix, req.FleetName)).ScoreMember().ScoreMember(float64(req.InitialCapacity), req.ContainerID).Build(),
 		// set initial heartbeat with TTL in value
 		b.client.B().Setex().Key(redisKeyContainerHeartbeat(b.keyPrefix, req.FleetName, req.ContainerID)).Seconds(int64(ttlSeconds)).Value(encodeHeartbeatTTLValue(ttl)).Build(),
 	}
+
+	// Check if container already exists and clear allocated room mappings
+	if err := b.removeContainerRoomMappings(ctx, req.ContainerID, req.FleetName); err != nil {
+		return nil, arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to remove container rooms: %w", err))
+	}
+
 	for _, res := range b.client.DoMulti(ctx, cmds...) {
 		if err := res.Error(); err != nil {
 			return nil, arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to add container to available containers index: %w", err))
@@ -97,32 +88,14 @@ func (b *redisBackend) DeleteContainer(ctx context.Context, req arena.DeleteCont
 	}
 
 	// remove the container from the available containers index
-	res := deleteContainerScript.Exec(ctx, b.client, []string{
-		redisKeyFleetCapacities(b.keyPrefix),
-		redisKeyAvailableContainersIndex(b.keyPrefix, req.FleetName),
-	}, []string{
-		req.ContainerID,
-		req.FleetName,
-	})
+	cmd := b.client.B().Zrem().Key(redisKeyAvailableContainersIndex(b.keyPrefix, req.FleetName)).Member(req.ContainerID).Build()
+	res := b.client.Do(ctx, cmd)
 	if err := res.Error(); err != nil {
-		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to exec delete container script: %w", err))
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to remove container from available containers index: %w", err))
 	}
-	key := redisKeyContainerToRooms(b.keyPrefix, req.FleetName, req.ContainerID)
-	cmd := b.client.B().Smembers().Key(key).Build()
-	res = b.client.Do(ctx, cmd)
-	if err := res.Error(); err != nil {
-		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to get rooms for container '%s': %w", req.ContainerID, err))
-	}
-	rooms, err := res.AsStrSlice()
-	if err != nil {
-		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to parse rooms as string slice: %w", err))
-	}
-	delCmd := b.client.B().Del().Key(key)
-	for _, roomID := range rooms {
-		delCmd.Key(redisKeyRoomToContainer(b.keyPrefix, req.FleetName, roomID))
-	}
-	if err := b.client.Do(ctx, delCmd.Build()).Error(); err != nil {
-		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to delete rooms for container '%s': %w", req.ContainerID, err))
+
+	if err := b.removeContainerRoomMappings(ctx, req.ContainerID, req.FleetName); err != nil {
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to remove container rooms: %w", err))
 	}
 
 	// Remove heartbeat key
@@ -151,7 +124,6 @@ func (b *redisBackend) ReleaseRoom(ctx context.Context, req arena.ReleaseRoomReq
 
 	// increment the capacity of the container in the available containers index
 	cmds := []rueidis.Completed{
-		b.client.B().Zincrby().Key(redisKeyFleetCapacities(b.keyPrefix)).Increment(1).Member(req.FleetName).Build(),
 		b.client.B().Zincrby().Key(redisKeyAvailableContainersIndex(b.keyPrefix, req.FleetName)).Increment(1).Member(req.ContainerID).Build(),
 		b.client.B().Srem().Key(redisKeyContainerToRooms(b.keyPrefix, req.FleetName, req.ContainerID)).Member(req.RoomID).Build(),
 		b.client.B().Del().Key(redisKeyRoomToContainer(b.keyPrefix, req.FleetName, req.RoomID)).Build(),
@@ -228,6 +200,24 @@ func (b *redisBackend) getOrCreateFleet(name string) *fleet {
 	return f
 }
 
+func (b *redisBackend) removeContainerRoomMappings(ctx context.Context, containerID, fleetName string) error {
+	containerToRoomsKey := redisKeyContainerToRooms(b.keyPrefix, fleetName, containerID)
+	cmd := b.client.B().Smembers().Key(containerToRoomsKey).Build()
+	res := b.client.Do(ctx, cmd)
+	if err := res.Error(); err != nil {
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to get rooms for container '%s': %w", containerID, err))
+	}
+	rooms, err := res.AsStrSlice()
+	if err != nil {
+		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to parse rooms as string slice: %w", err))
+	}
+	delCmd := b.client.B().Del().Key(containerToRoomsKey)
+	for _, roomID := range rooms {
+		delCmd.Key(redisKeyRoomToContainer(b.keyPrefix, fleetName, roomID))
+	}
+	return b.client.Do(ctx, delCmd.Build()).Error()
+}
+
 type fleet struct {
 	name       string
 	containers map[string]*container
@@ -244,6 +234,9 @@ func newFleet(name string) *fleet {
 
 func (f *fleet) AddContainer(c *container) {
 	f.mu.Lock()
+	if old, ok := f.containers[c.containerID]; ok {
+		old.stop()
+	}
 	f.containers[c.containerID] = c
 	f.mu.Unlock()
 }

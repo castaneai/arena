@@ -18,9 +18,8 @@ if container_id then
 	return container_id
 end
 
-local fleet_capacities_key = KEYS[2]
-local available_containers_key = KEYS[3]
-local heartbeat_prefix = KEYS[6]
+local available_containers_key = KEYS[2]
+local heartbeat_prefix = KEYS[5]
 
 -- Find containers that have vacancy in capacity
 local found = redis.call('ZRANGE', available_containers_key, '(0', '+inf', 'BYSCORE')
@@ -37,8 +36,6 @@ for i, candidate_id in ipairs(found) do
     else
         -- Remove dead container from available containers
         redis.call('ZREM', available_containers_key, candidate_id)
-        local current_capacity = redis.call('ZSCORE', available_containers_key, candidate_id) or 0
-        redis.call('ZINCRBY', fleet_capacities_key, -current_capacity, ARGV[2])
     end
 end
 
@@ -48,14 +45,13 @@ end
 
 local room_id = ARGV[1]
 local fleet_name = ARGV[2]
-redis.call('ZINCRBY', fleet_capacities_key, -1, fleet_name)
 redis.call('ZINCRBY', available_containers_key, -1, container_id)
 redis.call('SET', room_container_key, container_id)
 
-local container_to_rooms_key = KEYS[4] .. container_id
+local container_to_rooms_key = KEYS[3] .. container_id
 redis.call('SADD', container_to_rooms_key, room_id)
 
-local container_channel = KEYS[5] .. container_id
+local container_channel = KEYS[4] .. container_id
 local allocation_event = ARGV[3]
 redis.call('PUBLISH', container_channel, allocation_event)
 return container_id
@@ -142,7 +138,6 @@ func (a *redisFrontend) allocateRoom(ctx context.Context, req arena.AllocateRoom
 	}
 	res := allocateRoomScript.Exec(ctx, a.client, []string{
 		redisKeyRoomToContainer(a.keyPrefix, req.FleetName, req.RoomID),
-		redisKeyFleetCapacities(a.keyPrefix),
 		redisKeyAvailableContainersIndex(a.keyPrefix, req.FleetName),
 		redisKeyContainerToRoomsPrefix(a.keyPrefix, req.FleetName),
 		redisPubSubChannelContainerPrefix(a.keyPrefix, req.FleetName),

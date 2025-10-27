@@ -4,10 +4,6 @@ import (
 	"fmt"
 )
 
-func redisKeyFleetCapacities(prefix string) string {
-	return fmt.Sprintf("%sfleets_capacities", prefix)
-}
-
 func redisKeyAvailableContainersIndex(prefix, fleetName string) string {
 	return fmt.Sprintf("%s%s:container_index", prefix, fleetName)
 }

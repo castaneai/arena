@@ -35,23 +35,6 @@ func (m *Metrics) GetContainerCount(ctx context.Context, fleetName string) (int,
 	return int(count), nil
 }
 
-func (m *Metrics) GetFleetCapacity(ctx context.Context, fleetName string) (int, error) {
-	key := redisKeyFleetCapacities(m.keyPrefix)
-	cmd := m.client.B().Zscore().Key(key).Member(fleetName).Build()
-	res := m.client.Do(ctx, cmd)
-	if err := res.Error(); err != nil {
-		if rueidis.IsRedisNil(err) {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("failed to zscore fleet capacities: %w", err)
-	}
-	capacity, err := res.AsInt64()
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse fleet capacity as int64: %w", err)
-	}
-	return int(capacity), nil
-}
-
 func (m *Metrics) GetContainers(ctx context.Context, fleetName string) ([]ContainerCapacity, error) {
 	key := redisKeyAvailableContainersIndex(m.keyPrefix, fleetName)
 	var containers []ContainerCapacity
