@@ -34,7 +34,7 @@ func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerR
 	if req.FleetName == "" {
 		return nil, arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing fleet name"))
 	}
-	if req.InitialCapacity <= 0 {
+	if req.InitialCapacity < 0 {
 		return nil, arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("invalid initial capacity"))
 	}
 
