@@ -106,6 +106,13 @@ func (c *container) isExpired(ctx context.Context) (bool, error) {
 }
 
 func (c *container) getHeartbeatTTL(ctx context.Context) (time.Duration, error) {
+	// Check if container has been stopped
+	select {
+	case <-c.stopCtx.Done():
+		return 0, arena.NewError(arena.ErrorStatusNotFound, errors.New("container has been stopped"))
+	default:
+	}
+
 	key := redisKeyContainerHeartbeat(c.keyPrefix, c.fleetName, c.containerID)
 	cmd := c.client.B().Get().Key(key).Build()
 	res := c.client.Do(ctx, cmd)
@@ -123,6 +130,13 @@ func (c *container) getHeartbeatTTL(ctx context.Context) (time.Duration, error) 
 }
 
 func (c *container) refreshTTL(ctx context.Context) error {
+	// Check if container has been stopped
+	select {
+	case <-c.stopCtx.Done():
+		return arena.NewError(arena.ErrorStatusNotFound, fmt.Errorf("container '%s' has been stopped", c.containerID))
+	default:
+	}
+
 	ttl, err := c.getHeartbeatTTL(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get heartbeat TTL for container '%s': %w", c.containerID, err)
