@@ -59,9 +59,11 @@ func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerR
 		b.client.B().Setex().Key(redisKeyContainerHeartbeat(b.keyPrefix, req.FleetName, req.ContainerID)).Seconds(int64(ttlSeconds)).Value(encodeHeartbeatTTLValue(ttl)).Build(),
 	}
 
-	// Check if container already exists and clear allocated room mappings
-	if err := b.removeContainerRoomMappings(ctx, req.ContainerID, req.FleetName); err != nil {
-		return nil, arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to remove container rooms: %w", err))
+	if req.InitialCapacity > 0 {
+		// Check if container already exists and clear allocated room mappings
+		if err := b.removeContainerRoomMappings(ctx, req.ContainerID, req.FleetName); err != nil {
+			return nil, arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to remove container rooms: %w", err))
+		}
 	}
 
 	for _, res := range b.client.DoMulti(ctx, cmds...) {
