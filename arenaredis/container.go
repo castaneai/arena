@@ -16,6 +16,13 @@ const (
 	defaultAllocationChannelBufferSize = 1024
 )
 
+// redisDoer is an interface that abstracts the Do and B methods needed for Redis operations.
+// This allows isContainerExpired to work with both rueidis.Client and rueidis.DedicatedClient.
+type redisDoer interface {
+	Do(ctx context.Context, cmd rueidis.Completed) rueidis.RedisResult
+	B() rueidis.Builder
+}
+
 type container struct {
 	containerID string
 	fleetName   string
@@ -89,20 +96,7 @@ func (c *container) start() (<-chan arena.ToContainerEvent, error) {
 }
 
 func (c *container) isExpired(ctx context.Context) (bool, error) {
-	key := redisKeyContainerHeartbeat(c.keyPrefix, c.fleetName, c.containerID)
-	cmd := c.client.B().Exists().Key(key).Build()
-	res := c.client.Do(ctx, cmd)
-	if err := res.Error(); err != nil {
-		if rueidis.IsRedisNil(err) {
-			return true, nil
-		}
-		return false, fmt.Errorf("failed to check if container heartbeat exists: %w", err)
-	}
-	existsCount, err := res.AsInt64()
-	if err != nil {
-		return false, fmt.Errorf("failed to parse exists count as int64: %w", err)
-	}
-	return existsCount == 0, nil
+	return isContainerExpired(ctx, c.client, c.keyPrefix, c.fleetName, c.containerID)
 }
 
 func (c *container) getHeartbeatTTL(ctx context.Context) (time.Duration, error) {
@@ -148,4 +142,23 @@ func (c *container) refreshTTL(ctx context.Context) error {
 		return fmt.Errorf("failed to refresh TTL for container '%s': %w", c.containerID, err)
 	}
 	return nil
+}
+
+// isContainerExpired checks if a container's heartbeat has expired by checking if the heartbeat key exists in Redis.
+// This is a common function that can be used by both container and metrics.
+func isContainerExpired(ctx context.Context, client redisDoer, keyPrefix, fleetName, containerID string) (bool, error) {
+	key := redisKeyContainerHeartbeat(keyPrefix, fleetName, containerID)
+	cmd := client.B().Exists().Key(key).Build()
+	res := client.Do(ctx, cmd)
+	if err := res.Error(); err != nil {
+		if rueidis.IsRedisNil(err) {
+			return true, nil
+		}
+		return false, fmt.Errorf("failed to check if container heartbeat exists: %w", err)
+	}
+	existsCount, err := res.AsInt64()
+	if err != nil {
+		return false, fmt.Errorf("failed to parse exists count as int64: %w", err)
+	}
+	return existsCount == 0, nil
 }

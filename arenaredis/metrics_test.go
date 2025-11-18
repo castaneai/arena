@@ -2,6 +2,7 @@ package arenaredis
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -59,4 +60,36 @@ func TestMetrics(t *testing.T) {
 	fleet2Containers, err := metrics.GetContainers(ctx, fleet2Name)
 	require.NoError(t, err)
 	require.Len(t, fleet2Containers, 0) // con1 in fleet2 has 0 capacity after room allocation
+}
+
+func TestGetContainersExcludesExpired(t *testing.T) {
+	ctx := t.Context()
+	_, backend, metrics := newFrontendBackendMetrics(t)
+
+	fleetName := "fleet_expired_test"
+	ttl := 2 * time.Second
+
+	// Add container with short TTL
+	_, err := backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con_expired",
+		InitialCapacity: 5,
+		FleetName:       fleetName,
+		HeartbeatTTL:    ttl,
+	})
+	require.NoError(t, err)
+
+	// Initially, container should be in GetContainers result
+	containers, err := metrics.GetContainers(ctx, fleetName)
+	require.NoError(t, err)
+	require.Len(t, containers, 1)
+	require.Equal(t, "con_expired", containers[0].ContainerID)
+	require.Equal(t, 5, containers[0].Capacity)
+
+	// Wait for heartbeat to expire (wait longer than TTL)
+	time.Sleep(ttl + time.Second)
+
+	// After heartbeat expires, container should not be in GetContainers result
+	containers, err = metrics.GetContainers(ctx, fleetName)
+	require.NoError(t, err)
+	require.Len(t, containers, 0, "expired container should not be included in GetContainers result")
 }

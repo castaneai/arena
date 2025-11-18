@@ -68,12 +68,20 @@ func (m *Metrics) GetContainers(ctx context.Context, fleetName string) ([]Contai
 			}
 
 			// Only include containers with capacity > 0
-			if capacity > 0 {
-				containers = append(containers, ContainerCapacity{
-					ContainerID: containerID,
-					Capacity:    capacity,
-				})
+			if capacity <= 0 {
+				continue
 			}
+
+			// Check if container heartbeat has expired
+			expired, err := isContainerExpired(ctx, m.client, m.keyPrefix, fleetName, containerID)
+			if err != nil || expired {
+				continue // Skip expired containers
+			}
+
+			containers = append(containers, ContainerCapacity{
+				ContainerID: containerID,
+				Capacity:    capacity,
+			})
 		}
 
 		cursor = scanResult.Cursor
