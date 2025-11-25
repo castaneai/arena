@@ -85,7 +85,7 @@ func (c *container) start() (<-chan arena.ToContainerEvent, error) {
 					continue
 				}
 				if expired {
-					slog.DebugContext(c.stopCtx, fmt.Sprintf("container '%s' is expired, stopping...", c.containerID))
+					slog.InfoContext(c.stopCtx, fmt.Sprintf("container '%s' is expired, stopping...", c.containerID))
 					c.stop()
 					return
 				}
