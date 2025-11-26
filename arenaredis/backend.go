@@ -145,8 +145,43 @@ func (b *redisBackend) SendHeartbeat(ctx context.Context, req arena.SendHeartbea
 		return arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("missing fleet name"))
 	}
 
-	flt := b.getOrCreateFleet(req.FleetName)
-	return flt.RefreshContainerTTL(ctx, req.ContainerID)
+	// Refresh the heartbeat TTL directly in Redis without relying on in-memory container state.
+	// This allows any API instance to handle heartbeat requests, not just the one that registered the container.
+	return b.refreshHeartbeatTTL(ctx, req.FleetName, req.ContainerID)
+}
+
+// refreshHeartbeatTTL refreshes the heartbeat TTL for a container directly in Redis.
+// Returns ErrorStatusNotFound if the container's heartbeat key does not exist.
+func (b *redisBackend) refreshHeartbeatTTL(ctx context.Context, fleetName, containerID string) error {
+	key := redisKeyContainerHeartbeat(b.keyPrefix, fleetName, containerID)
+
+	// First, get the current heartbeat value to extract the TTL
+	getCmd := b.client.B().Get().Key(key).Build()
+	res := b.client.Do(ctx, getCmd)
+	if err := res.Error(); err != nil {
+		if rueidis.IsRedisNil(err) {
+			return arena.NewError(arena.ErrorStatusNotFound, fmt.Errorf("container '%s' not found in fleet '%s'", containerID, fleetName))
+		}
+		return fmt.Errorf("failed to get heartbeat for container '%s': %w", containerID, err)
+	}
+
+	heartbeatValue, err := res.ToString()
+	if err != nil {
+		return fmt.Errorf("failed to parse heartbeat value: %w", err)
+	}
+
+	ttl, err := decodeHeartbeatTTLValue(heartbeatValue)
+	if err != nil {
+		return fmt.Errorf("failed to decode heartbeat TTL for container '%s': %w", containerID, err)
+	}
+
+	// Refresh the TTL
+	setCmd := b.client.B().Set().Key(key).Value(encodeHeartbeatTTLValue(ttl)).Ex(ttl).Build()
+	if err := b.client.Do(ctx, setCmd).Error(); err != nil {
+		return fmt.Errorf("failed to refresh TTL for container '%s': %w", containerID, err)
+	}
+
+	return nil
 }
 
 func (b *redisBackend) getOrCreateFleet(name string) *fleet {
@@ -211,20 +246,3 @@ func (f *fleet) DeleteContainer(containerID string) {
 	}
 }
 
-func (f *fleet) RefreshContainerTTL(ctx context.Context, containerID string) error {
-	f.mu.RLock()
-	c, ok := f.containers[containerID]
-	f.mu.RUnlock()
-	if !ok {
-		return arena.NewError(arena.ErrorStatusNotFound, fmt.Errorf("container '%s' not found in fleet '%s'", containerID, f.name))
-	}
-
-	if err := c.refreshTTL(ctx); err != nil {
-		if arena.ErrorHasStatus(err, arena.ErrorStatusNotFound) {
-			f.DeleteContainer(containerID)
-			return arena.NewError(arena.ErrorStatusNotFound, fmt.Errorf("container '%s' not found in fleet '%s'", containerID, f.name))
-		}
-		return fmt.Errorf("failed to refresh TTL for container '%s': %w", containerID, err)
-	}
-	return nil
-}
