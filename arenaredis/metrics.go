@@ -38,8 +38,8 @@ func (m *Metrics) GetContainerCount(ctx context.Context, fleetName string) (int,
 func (m *Metrics) GetContainers(ctx context.Context, fleetName string) ([]ContainerCapacity, error) {
 	key := redisKeyAvailableContainersIndex(m.keyPrefix, fleetName)
 
-	// Use ZRANGE BYSCORE to get only containers with capacity >= 1
-	cmd := m.client.B().Zrange().Key(key).Min("1").Max("+inf").Byscore().Withscores().Build()
+	// Get all containers (including capacity: 0) to check for expired ones
+	cmd := m.client.B().Zrange().Key(key).Min("-inf").Max("+inf").Byscore().Withscores().Build()
 	res := m.client.Do(ctx, cmd)
 	if err := res.Error(); err != nil {
 		return nil, fmt.Errorf("failed to zrange available containers index: %w", err)
@@ -51,6 +51,7 @@ func (m *Metrics) GetContainers(ctx context.Context, fleetName string) ([]Contai
 	}
 
 	var containers []ContainerCapacity
+	var expiredContainerIDs []string
 	for _, score := range scores {
 		containerID := score.Member
 		capacity := int(score.Score)
@@ -58,13 +59,25 @@ func (m *Metrics) GetContainers(ctx context.Context, fleetName string) ([]Contai
 		// Check if container heartbeat has expired
 		expired, err := isContainerExpired(ctx, m.client, m.keyPrefix, fleetName, containerID)
 		if err != nil || expired {
+			expiredContainerIDs = append(expiredContainerIDs, containerID)
 			continue // Skip expired containers
 		}
 
-		containers = append(containers, ContainerCapacity{
-			ContainerID: containerID,
-			Capacity:    capacity,
-		})
+		// Only include containers with capacity >= 1 in the result
+		if capacity >= 1 {
+			containers = append(containers, ContainerCapacity{
+				ContainerID: containerID,
+				Capacity:    capacity,
+			})
+		}
+	}
+
+	// Remove expired containers from the index
+	if len(expiredContainerIDs) > 0 {
+		zremCmd := m.client.B().Zrem().Key(key).Member(expiredContainerIDs...).Build()
+		if err := m.client.Do(ctx, zremCmd).Error(); err != nil {
+			return nil, fmt.Errorf("failed to remove expired containers from index: %w", err)
+		}
 	}
 
 	return containers, nil

@@ -92,4 +92,9 @@ func TestGetContainersExcludesExpired(t *testing.T) {
 	containers, err = metrics.GetContainers(ctx, fleetName)
 	require.NoError(t, err)
 	require.Len(t, containers, 0, "expired container should not be included in GetContainers result")
+
+	// Expired container should also be removed from the index
+	containerCount, err := metrics.GetContainerCount(ctx, fleetName)
+	require.NoError(t, err)
+	require.Equal(t, 0, containerCount, "expired container should be removed from the index")
 }
