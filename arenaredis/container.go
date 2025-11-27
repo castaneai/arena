@@ -78,13 +78,24 @@ func (c *container) start() (<-chan arena.ToContainerEvent, error) {
 					slog.Error(fmt.Sprintf("toContainer event received but channel is full: %+v", ev))
 				}
 			case <-ticker.C:
+				// Check if container was explicitly deleted (removed from index)
+				deleted, err := c.isDeleted(c.stopCtx)
+				if err != nil {
+					slog.WarnContext(c.stopCtx, fmt.Sprintf("failed to check if container is deleted: %+v", err), "error", err)
+					continue
+				}
+				if deleted {
+					// Container was explicitly deleted by another backend, stop silently
+					c.stop()
+					return
+				}
 				expired, err := c.isExpired(c.stopCtx)
 				if err != nil {
 					slog.WarnContext(c.stopCtx, fmt.Sprintf("failed to check if container is expired: %+v", err), "error", err)
 					continue
 				}
 				if expired {
-					slog.InfoContext(c.stopCtx, fmt.Sprintf("container '%s' is expired, stopping...", c.containerID))
+					slog.InfoContext(c.stopCtx, fmt.Sprintf("container '%s' heartbeat expired, stopping pubsub listener", c.containerID))
 					c.stop()
 					return
 				}
@@ -96,6 +107,22 @@ func (c *container) start() (<-chan arena.ToContainerEvent, error) {
 
 func (c *container) isExpired(ctx context.Context) (bool, error) {
 	return isContainerExpired(ctx, c.client, c.keyPrefix, c.fleetName, c.containerID)
+}
+
+// isDeleted checks if the container was explicitly deleted (removed from available containers index).
+func (c *container) isDeleted(ctx context.Context) (bool, error) {
+	key := redisKeyAvailableContainersIndex(c.keyPrefix, c.fleetName)
+	cmd := c.client.B().Zscore().Key(key).Member(c.containerID).Build()
+	res := c.client.Do(ctx, cmd)
+	if err := res.Error(); err != nil {
+		if rueidis.IsRedisNil(err) {
+			// Container not in index means it was deleted
+			return true, nil
+		}
+		return false, fmt.Errorf("failed to check if container exists in index: %w", err)
+	}
+	// Container exists in index
+	return false, nil
 }
 
 // isContainerExpired checks if a container's heartbeat has expired by checking if the heartbeat key exists in Redis.
