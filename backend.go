@@ -41,13 +41,15 @@ type AddContainerRequest struct {
 	// When AddContainer receives the RegistrationID that arena already holds for the same
 	// ContainerID, it treats the call as a re-registration of the running container: the rooms
 	// already allocated to it are kept and its capacity stays consistent with them. Only the event
-	// subscription is re-established. Any other RegistrationID means a new incarnation, so the rooms
-	// left behind by the previous one are removed.
+	// subscription is re-established. Any other RegistrationID, including an empty one, means a new
+	// incarnation, so the rooms left behind by the previous one are removed.
 	//
-	// If empty, arena cannot tell a retry from a restart and falls back to removing the existing
-	// rooms whenever InitialCapacity > 0. A container that retries AddContainer (e.g. after an RPC
-	// timeout) should always set this field: otherwise a retry frees capacity that is in fact
-	// occupied, and the room mapping of the session running there is lost.
+	// Rooms are never removed from a container registering with an InitialCapacity of 0, whatever
+	// its RegistrationID: reporting no capacity states that the slots are taken.
+	//
+	// A container that retries AddContainer (e.g. after an RPC timeout) should always set this
+	// field: otherwise a retry frees capacity that is in fact occupied, and the room mapping of the
+	// session running there is lost.
 	RegistrationID string
 }
 

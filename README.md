@@ -76,11 +76,13 @@ per container lifetime (e.g. a UUID) and send the same value on every retry.
 
 - Same `RegistrationID` as the one Arena holds: the allocated rooms and the remaining capacity are
   kept, and only the event subscription is re-established
-- Any other `RegistrationID`: the container is a new incarnation, so the rooms left by the previous
-  one are removed and the capacity starts from `InitialCapacity`
+- Any other `RegistrationID`, including an empty one: the container is a new incarnation, so the
+  rooms left by the previous one are removed and the capacity starts from `InitialCapacity`
 
-If `RegistrationID` is empty, Arena cannot tell a retry from a restart and removes the existing rooms
-whenever `InitialCapacity > 0`.
+Rooms are never removed from a container registering with `InitialCapacity` of 0, whatever its
+`RegistrationID`. A container reporting no capacity states that its slots are taken, and that is the
+only evidence of a running container Arena has left once the `RegistrationID` is unknown to it,
+either because an older caller never stored one or because it expired along with the heartbeat.
 
 `RegistrationID` must not be derived from a value that survives a restart, such as the container ID
 or the Pod name. A restarted container reporting the `RegistrationID` of its predecessor keeps the
