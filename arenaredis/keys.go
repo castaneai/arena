@@ -8,8 +8,12 @@ func redisKeyAvailableContainersIndex(prefix, fleetName string) string {
 	return fmt.Sprintf("%s%s:container_index", prefix, fleetName)
 }
 
+func redisKeyRoomToContainerPrefix(prefix, fleetName string) string {
+	return fmt.Sprintf("%s%s:room_container:", prefix, fleetName)
+}
+
 func redisKeyRoomToContainer(prefix, fleetName, roomID string) string {
-	return fmt.Sprintf("%s%s:room_container:%s", prefix, fleetName, roomID)
+	return fmt.Sprintf("%s%s", redisKeyRoomToContainerPrefix(prefix, fleetName), roomID)
 }
 
 func redisKeyContainerToRoomsPrefix(prefix, fleetName string) string {
@@ -34,4 +38,8 @@ func redisKeyContainerHeartbeatPrefix(prefix, fleetName string) string {
 
 func redisKeyContainerHeartbeat(prefix, fleetName, containerID string) string {
 	return fmt.Sprintf("%s%s", redisKeyContainerHeartbeatPrefix(prefix, fleetName), containerID)
+}
+
+func redisKeyContainerRegistration(prefix, fleetName, containerID string) string {
+	return fmt.Sprintf("%s%s:registration:%s", prefix, fleetName, containerID)
 }

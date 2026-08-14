@@ -64,6 +64,28 @@ To prevent invalid container information from remaining in Arena when containers
 - Containers should call `Backend.SendHeartbeat` at regular intervals (recommended: every 10 seconds for a 30-second TTL)
 - If a container fails to send heartbeats within the TTL period, Arena automatically removes it from the available container pool
 
+## Re-registration
+
+A container may end up calling `Backend.AddContainer` more than once, typically when it retries after
+an RPC timeout while the previous call already reached Arena. Such a retry must not be mistaken for a
+restarted container: resetting the capacity would hand out slots that are in fact occupied, and
+clearing the room mappings would leave the sessions running there unreachable.
+
+To tell the two apart, containers set `AddContainerRequest.RegistrationID` to a value generated once
+per container lifetime (e.g. a UUID) and send the same value on every retry.
+
+- Same `RegistrationID` as the one Arena holds: the allocated rooms and the remaining capacity are
+  kept, and only the event subscription is re-established
+- Any other `RegistrationID`: the container is a new incarnation, so the rooms left by the previous
+  one are removed and the capacity starts from `InitialCapacity`
+
+If `RegistrationID` is empty, Arena cannot tell a retry from a restart and removes the existing rooms
+whenever `InitialCapacity > 0`.
+
+`RegistrationID` must not be derived from a value that survives a restart, such as the container ID
+or the Pod name. A restarted container reporting the `RegistrationID` of its predecessor keeps the
+rooms of a session it no longer serves, and that capacity is freed only once its heartbeat lapses.
+Rooms a container no longer serves are released with `Backend.ReleaseRoom`.
 
 ## License
 

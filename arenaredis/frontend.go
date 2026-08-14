@@ -132,7 +132,10 @@ func (a *redisFrontend) NotifyToRoom(ctx context.Context, req arena.NotifyToRoom
 	}
 	containerID, err := a.getContainerIDByRoom(ctx, req.FleetName, req.RoomID)
 	if err != nil {
-		return arena.NewError(arena.ErrorStatusUnknown, fmt.Errorf("failed to parse redis result as string: %w", err))
+		// getContainerIDByRoom already classifies its errors, ErrorStatusNotFound in particular.
+		// Wrapping it again would hide that status from ErrorHasStatus, which reports the outermost
+		// status only, and callers could no longer tell a missing room from a Redis failure.
+		return err
 	}
 	channel := redisPubSubChannelContainer(a.keyPrefix, req.FleetName, containerID)
 	data, err := encodeNotifyToRoomEvent(req.RoomID, req.Body)
