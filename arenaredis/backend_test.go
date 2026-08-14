@@ -2,6 +2,7 @@ package arenaredis
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -263,4 +264,181 @@ func TestAddContainerRetryAfterHeartbeatExpiredClearsRooms(t *testing.T) {
 	room2, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room2", FleetName: fleetName})
 	require.NoError(t, err)
 	require.Equal(t, "con1", room2.ContainerID)
+}
+
+// A registration ID arena never stored (an older caller registered the container, or the keys
+// expired) must not be read as a new incarnation while the container reports no capacity: the
+// container is telling arena that its slots are taken.
+func TestAddContainerUnknownRegistrationWithoutCapacityKeepsAllocatedRooms(t *testing.T) {
+	fleetName := "fleet1"
+	ctx := t.Context()
+	frontend, backend, _ := newFrontendBackendMetrics(t)
+
+	// Registered without a registration ID, so arena holds none for this container.
+	_, err := backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: 1,
+		FleetName:       fleetName,
+	})
+	require.NoError(t, err)
+
+	room1, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room1", FleetName: fleetName})
+	require.NoError(t, err)
+	require.Equal(t, "con1", room1.ContainerID)
+
+	// The same container re-registers, now reporting a registration ID and no capacity.
+	_, err = backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: 0,
+		FleetName:       fleetName,
+		RegistrationID:  "registration-1",
+	})
+	require.NoError(t, err)
+
+	err = frontend.NotifyToRoom(ctx, arena.NotifyToRoomRequest{RoomID: "room1", FleetName: fleetName, Body: []byte("hello_room1")})
+	require.NoError(t, err)
+
+	_, err = frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room2", FleetName: fleetName})
+	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusResourceExhausted))
+}
+
+// Registering without a registration ID says nothing about the incarnation arena holds, so it must
+// not drop it: the next re-registration of the running container would lose its rooms.
+func TestAddContainerWithoutRegistrationKeepsStoredRegistration(t *testing.T) {
+	fleetName := "fleet1"
+	ctx := t.Context()
+	frontend, backend, _ := newFrontendBackendMetrics(t)
+
+	registrationID := "registration-1"
+	_, err := backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: 1,
+		FleetName:       fleetName,
+		RegistrationID:  registrationID,
+	})
+	require.NoError(t, err)
+
+	room1, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room1", FleetName: fleetName})
+	require.NoError(t, err)
+	require.Equal(t, "con1", room1.ContainerID)
+
+	// A caller that does not report the registration ID, e.g. one running an older version.
+	_, err = backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: 0,
+		FleetName:       fleetName,
+	})
+	require.NoError(t, err)
+
+	// The container itself retries, and is still recognised as the same incarnation.
+	_, err = backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: 1,
+		FleetName:       fleetName,
+		RegistrationID:  registrationID,
+	})
+	require.NoError(t, err)
+
+	err = frontend.NotifyToRoom(ctx, arena.NotifyToRoomRequest{RoomID: "room1", FleetName: fleetName, Body: []byte("hello_room1")})
+	require.NoError(t, err)
+
+	_, err = frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room2", FleetName: fleetName})
+	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusResourceExhausted))
+}
+
+// Re-registering with a capacity below the number of rooms held leaves no vacancy, rather than a
+// negative one that later releases would have to work off.
+func TestAddContainerCapacityNeverGoesBelowRoomsHeld(t *testing.T) {
+	fleetName := "fleet1"
+	ctx := t.Context()
+	frontend, backend, _ := newFrontendBackendMetrics(t)
+
+	registrationID := "registration-1"
+	_, err := backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: 3,
+		FleetName:       fleetName,
+		RegistrationID:  registrationID,
+	})
+	require.NoError(t, err)
+
+	for _, roomID := range []string{"room1", "room2", "room3"} {
+		room, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: roomID, FleetName: fleetName})
+		require.NoError(t, err)
+		require.Equal(t, "con1", room.ContainerID)
+	}
+
+	_, err = backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: 1,
+		FleetName:       fleetName,
+		RegistrationID:  registrationID,
+	})
+	require.NoError(t, err)
+
+	_, err = frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room4", FleetName: fleetName})
+	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusResourceExhausted))
+
+	// One release frees exactly one slot, so the clamp did not leave a hidden debt.
+	err = backend.ReleaseRoom(ctx, arena.ReleaseRoomRequest{ContainerID: "con1", FleetName: fleetName, RoomID: "room1"})
+	require.NoError(t, err)
+	room4, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room4", FleetName: fleetName})
+	require.NoError(t, err)
+	require.Equal(t, "con1", room4.ContainerID)
+}
+
+// The rooms of a container holding more of them than one DEL can take are all removed.
+func TestAddContainerNewRegistrationClearsRoomsBeyondOneBatch(t *testing.T) {
+	fleetName := "fleet1"
+	ctx := t.Context()
+	frontend, backend, _ := newFrontendBackendMetrics(t)
+
+	const roomCount = 300
+	_, err := backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: roomCount,
+		FleetName:       fleetName,
+		RegistrationID:  "registration-1",
+	})
+	require.NoError(t, err)
+
+	roomIDs := make([]string, 0, roomCount)
+	for i := range roomCount {
+		roomID := fmt.Sprintf("room%d", i)
+		roomIDs = append(roomIDs, roomID)
+		_, err := frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: roomID, FleetName: fleetName})
+		require.NoError(t, err)
+	}
+
+	_, err = backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: roomCount,
+		FleetName:       fleetName,
+		RegistrationID:  "registration-2",
+	})
+	require.NoError(t, err)
+
+	for _, roomID := range roomIDs {
+		err := frontend.NotifyToRoom(ctx, arena.NotifyToRoomRequest{RoomID: roomID, FleetName: fleetName, Body: []byte("hello")})
+		require.Truef(t, arena.ErrorHasStatus(err, arena.ErrorStatusNotFound), "room %s still mapped to a container", roomID)
+	}
+}
+
+// A heartbeat TTL Redis would round down to an immediate expiry is rejected before the container is
+// registered, rather than failing halfway through.
+func TestAddContainerRejectsSubSecondHeartbeatTTL(t *testing.T) {
+	fleetName := "fleet1"
+	ctx := t.Context()
+	frontend, backend, _ := newFrontendBackendMetrics(t)
+
+	_, err := backend.AddContainer(ctx, arena.AddContainerRequest{
+		ContainerID:     "con1",
+		InitialCapacity: 1,
+		FleetName:       fleetName,
+		HeartbeatTTL:    500 * time.Millisecond,
+	})
+	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusInvalidRequest))
+
+	_, err = frontend.AllocateRoom(ctx, arena.AllocateRoomRequest{RoomID: "room1", FleetName: fleetName})
+	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusResourceExhausted))
 }

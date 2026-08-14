@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/redis/rueidis"
 
@@ -31,21 +32,17 @@ local registration_id = ARGV[5]
 local same_incarnation = registration_id ~= '' and redis.call('GET', registration_key) == registration_id
 
 -- Rooms left behind by a previous incarnation can never be reached again, so they are dropped.
--- Without a registration ID a retry cannot be told apart from a restart, and the older rule
--- (clear rooms unless the container registers with no capacity) applies.
-local clear_rooms
-if registration_id ~= '' then
-	clear_rooms = not same_incarnation
-else
-	clear_rooms = initial_capacity > 0
-end
+-- A container registering with no capacity states that its slots are taken, which is the only
+-- evidence of a running container left once the registration ID is unknown to arena: it was never
+-- stored (an older caller), or it expired with the heartbeat. Its rooms are kept in that case too.
+local clear_rooms = initial_capacity > 0 and not same_incarnation
 if clear_rooms then
 	local rooms = redis.call('SMEMBERS', container_to_rooms_key)
 	local deleting = {container_to_rooms_key}
 	for i = 1, #rooms do
 		deleting[#deleting + 1] = room_to_container_prefix .. rooms[i]
-		-- Delete in batches: a single DEL of every key of a container holding many rooms would
-		-- risk overflowing the Lua stack.
+		-- Delete in batches: unpack has a limit on the number of values it can push, which the
+		-- keys of a container holding many rooms would reach.
 		if #deleting >= 256 then
 			redis.call('DEL', unpack(deleting))
 			deleting = {}
@@ -63,12 +60,36 @@ if capacity < 0 then
 end
 redis.call('ZADD', available_containers_key, capacity, container_id)
 redis.call('SET', heartbeat_key, heartbeat_value, 'EX', ttl_seconds)
+-- A caller sending no registration ID cannot say which incarnation it is, but that is not evidence
+-- that the stored one is gone. Dropping the key here would make the next registration of the very
+-- same container look like a new incarnation and take its rooms away.
 if registration_id ~= '' then
 	redis.call('SET', registration_key, registration_id, 'EX', ttl_seconds)
-else
-	redis.call('DEL', registration_key)
 end
 return capacity
+`)
+
+	refreshHeartbeatScript = rueidis.NewLuaScript(`
+local heartbeat_key = KEYS[1]
+local registration_key = KEYS[2]
+local heartbeat_value = ARGV[1]
+local ttl_seconds = tonumber(ARGV[2])
+
+-- Refreshing a heartbeat that already expired would bring back a container arena has given up on,
+-- so a refresh only applies while the key is alive.
+if redis.call('EXISTS', heartbeat_key) == 0 then
+	return 0
+end
+redis.call('SET', heartbeat_key, heartbeat_value, 'EX', ttl_seconds)
+
+-- The registration ID is written again rather than extended with EXPIRE: EXPIRE cannot bring back
+-- a key that expired between the two commands, and a container that loses its registration ID has
+-- every later re-registration treated as a new incarnation, which takes its rooms away.
+local registration_id = redis.call('GET', registration_key)
+if registration_id then
+	redis.call('SET', registration_key, registration_id, 'EX', ttl_seconds)
+end
+return 1
 `)
 )
 
@@ -98,6 +119,11 @@ func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerR
 	if req.InitialCapacity < 0 {
 		return nil, arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("invalid initial capacity"))
 	}
+	// Redis expires keys by the second, and a TTL below that would round down to an immediate
+	// expiry, which Redis rejects halfway through registering the container.
+	if req.HeartbeatTTL > 0 && req.HeartbeatTTL < time.Second {
+		return nil, arena.NewError(arena.ErrorStatusInvalidRequest, errors.New("heartbeat TTL must be at least 1s"))
+	}
 
 	// Use default TTL if not specified
 	ttl := req.HeartbeatTTL
@@ -109,6 +135,8 @@ func (b *redisBackend) AddContainer(ctx context.Context, req arena.AddContainerR
 	c := newContainer(b.client, b.keyPrefix, req)
 	ch, err := c.start()
 	if err != nil {
+		// newContainer already took a dedicated client out of the pool.
+		c.stop()
 		return nil, fmt.Errorf("failed to listen allocation: %w", err)
 	}
 
@@ -237,16 +265,22 @@ func (b *redisBackend) refreshHeartbeatTTL(ctx context.Context, fleetName, conta
 		return fmt.Errorf("failed to decode heartbeat TTL for container '%s': %w", containerID, err)
 	}
 
-	// Refresh the TTL. The registration ID must outlive the heartbeat by no less than the heartbeat
-	// itself: once it is gone, AddContainer can no longer tell a retry from a restart.
-	cmds := []rueidis.Completed{
-		b.client.B().Set().Key(key).Value(encodeHeartbeatTTLValue(ttl)).Ex(ttl).Build(),
-		b.client.B().Expire().Key(redisKeyContainerRegistration(b.keyPrefix, fleetName, containerID)).Seconds(int64(ttl.Seconds())).Build(),
+	// Refresh the heartbeat and the registration ID together. The two are written with the same TTL,
+	// so refreshing them in one script keeps the registration ID from being lost when a refresh
+	// lands just after both expired.
+	refreshed := refreshHeartbeatScript.Exec(ctx, b.client, []string{
+		key,
+		redisKeyContainerRegistration(b.keyPrefix, fleetName, containerID),
+	}, []string{encodeHeartbeatTTLValue(ttl), strconv.Itoa(int(ttl.Seconds()))})
+	if err := refreshed.Error(); err != nil {
+		return fmt.Errorf("failed to refresh TTL for container '%s': %w", containerID, err)
 	}
-	for _, res := range b.client.DoMulti(ctx, cmds...) {
-		if err := res.Error(); err != nil {
-			return fmt.Errorf("failed to refresh TTL for container '%s': %w", containerID, err)
-		}
+	alive, err := refreshed.AsInt64()
+	if err != nil {
+		return fmt.Errorf("failed to parse heartbeat refresh result: %w", err)
+	}
+	if alive == 0 {
+		return arena.NewError(arena.ErrorStatusNotFound, fmt.Errorf("container '%s' not found in fleet '%s'", containerID, fleetName))
 	}
 
 	return nil
@@ -313,4 +347,3 @@ func (f *fleet) DeleteContainer(containerID string) {
 		delete(f.containers, containerID)
 	}
 }
-
