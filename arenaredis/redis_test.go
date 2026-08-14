@@ -125,6 +125,10 @@ func TestNotifyToRoom(t *testing.T) {
 	require.NoError(t, err)
 	ev2 := mustReadChan(t, con1.EventChannel).(*arena.NotifyToRoomEvent)
 	require.Equal(t, "hello_room1", string(ev2.Body))
+
+	// Notifying a room that was never allocated is reported as not found, not as an unknown failure.
+	err = frontend.NotifyToRoom(ctx, arena.NotifyToRoomRequest{RoomID: "unknown_room", FleetName: fleet1Name, Body: []byte("hello")})
+	require.True(t, arena.ErrorHasStatus(err, arena.ErrorStatusNotFound))
 }
 
 func TestHeartbeat(t *testing.T) {
