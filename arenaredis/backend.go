@@ -329,21 +329,28 @@ func newFleet(name string) *fleet {
 	}
 }
 
+// Stopping a container releases its connection, which talks to Redis and can take as long as that
+// takes. Both methods below therefore only touch the map while holding the lock, and stop the
+// container they replaced or removed once it is released: a slow stop then costs one caller instead
+// of every AddContainer and DeleteContainer of the fleet.
+
 func (f *fleet) AddContainer(c *container) {
 	f.mu.Lock()
-	if old, ok := f.containers[c.containerID]; ok {
-		old.stop()
-	}
+	old, replaced := f.containers[c.containerID]
 	f.containers[c.containerID] = c
 	f.mu.Unlock()
+	if replaced {
+		old.stop()
+	}
 }
 
 func (f *fleet) DeleteContainer(containerID string) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
-	if c, ok := f.containers[containerID]; ok {
+	c, ok := f.containers[containerID]
+	delete(f.containers, containerID)
+	f.mu.Unlock()
+	if ok {
 		// stop listening for allocation events for the container
 		c.stop()
-		delete(f.containers, containerID)
 	}
 }

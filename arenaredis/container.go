@@ -25,10 +25,15 @@ type redisDoer interface {
 type container struct {
 	containerID string
 	fleetName   string
-	client      rueidis.DedicatedClient
-	keyPrefix   string
-	stopCtx     context.Context
-	stopFunc    context.CancelFunc
+	// subscriber carries the subscription only. Its read loop delivers the pub/sub messages, so
+	// any command sent on it waits behind them, and a reply cannot arrive while the listener of
+	// this container is busy elsewhere.
+	subscriber rueidis.DedicatedClient
+	// client is the shared connection pool, used for the liveness checks of this container.
+	client    rueidis.Client
+	keyPrefix string
+	stopCtx   context.Context
+	stopFunc  context.CancelFunc
 }
 
 func newContainer(client rueidis.Client, keyPrefix string, req arena.AddContainerRequest) *container {
@@ -37,7 +42,8 @@ func newContainer(client rueidis.Client, keyPrefix string, req arena.AddContaine
 	return &container{
 		containerID: req.ContainerID,
 		fleetName:   req.FleetName,
-		client:      dc,
+		subscriber:  dc,
+		client:      client,
 		keyPrefix:   keyPrefix,
 		stopCtx:     stopCtx,
 		stopFunc: func() {
@@ -55,7 +61,7 @@ func (c *container) stop() {
 func (c *container) start() (<-chan arena.ToContainerEvent, error) {
 	ch := make(chan arena.ToContainerEvent, defaultAllocationChannelBufferSize)
 	channel := redisPubSubChannelContainer(c.keyPrefix, c.fleetName, c.containerID)
-	received, err := subscribe(c.stopCtx, c.client, channel)
+	received, err := subscribe(c.stopCtx, c.subscriber, channel)
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +75,11 @@ func (c *container) start() (<-chan arena.ToContainerEvent, error) {
 			case msg := <-received:
 				ev, err := decodeToContainerEvent(msg)
 				if err != nil {
-					slog.Error(fmt.Sprintf("failed to decode allocation event: %v", err))
-					return
+					// One message arena cannot read is not a reason to take the container out of
+					// the fleet: giving up here would leave every later event undelivered until
+					// the container registers again.
+					slog.Error(fmt.Sprintf("failed to decode allocation event, skipping it: %v", err))
+					continue
 				}
 				select {
 				case ch <- ev:
